@@ -1,0 +1,77 @@
+import os.path
+import tempfile
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DEBUG = True
+SECRET_KEY = 'test'
+ROOT_URLCONF = 'tests.urls'
+MIDDLEWARE = ['django.contrib.sessions.middleware.SessionMiddleware']
+
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'test.sqlite3',
+    }
+}
+
+
+INSTALLED_APPS = [
+    'django.contrib.sites',
+    'django.contrib.flatpages',
+    'django.contrib.sessions',
+    'django.contrib.sitemaps',
+    'django.contrib.humanize',
+    'django.contrib.redirects',
+    'staticsite',
+    'tests',
+]
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '%(asctime)s %(name)s [%(levelname)s] %(message)s'
+        },
+    },
+    'handlers': {
+        'log_to_stdout': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+            },
+        },
+    'loggers': {
+        'main': {
+            'handlers': ['log_to_stdout'],
+            'level': 'DEBUG',
+            'propagate': True,
+        }
+    }
+}
+
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'tests' / 'templates'],
+        'APP_DIRS': True,
+    },
+]
+
+
+SITE_ID = 1
+
+
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'tests' / 'static'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'tests' / 'media'
+
+
+LANGUAGE_CODE = 'en'
+USE_I18N = True

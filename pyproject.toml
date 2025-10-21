@@ -1,7 +1,7 @@
 [project]
 name = "django-staticsite"
 version = "0.1.0"
-description = "Add your description here"
+description = "Reference implementation of a staticsite contrib module for Django"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

@@ -6,4 +6,4 @@ test:
 
 
 runserver:
-		uv run run-tests.py runserver
+		uv run manage.py runserver

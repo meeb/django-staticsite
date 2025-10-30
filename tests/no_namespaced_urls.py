@@ -16,7 +16,6 @@ urlpatterns = [
         test_url_in_no_namespace_view,
         name='test_url_in_no_namespace',
         staticsite_path=True,
-        staticsite_urls_generator=test_no_param_func,
-        staticsite_filename='test_url_in_no_namespace'),
+        staticsite_urls_generator=test_no_param_func),
 
 ]

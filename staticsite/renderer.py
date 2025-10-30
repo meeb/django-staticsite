@@ -1,6 +1,7 @@
 import errno
 from pathlib import Path
 from types import TracebackType
+from collections.abc import Generator
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings, global_settings
@@ -10,6 +11,7 @@ from django.utils.translation import activate as activate_lang
 from django.db import connection, close_old_connections
 #from .logging import get_logger
 from .errors import StaticSiteError
+from .urls import get_staticsite_url_by_name
 from .request import internal_wsgi_request, generate_uri, get_uri_values, get_static_filepath, generate_filename
 from .utils import get_header, get_langs
 
@@ -38,17 +40,14 @@ def render_uri(
 def render_pattern(
     pattern: URLPattern,
     param_set: list[str | None] | tuple[str | None],
-    uri: str,
     language_code: str | None
 ) -> tuple[URLPattern, str, str, int, list, bytes]:
-    close_old_connections()
-    connection.ensure_connection()
     if language_code:
         activate_lang(language_code)
     generated_uri = generate_uri(pattern.staticsite_namespace, pattern.name, param_set)
-    status, headers, body = render_uri(uri, pattern.staticsite_status_codes)
-    generated_filename = generate_filename(pattern.staticsite_filename, uri, param_set)
-    return pattern, generated_uri, generated_filename, status, headers, body
+    status, headers, body = render_uri(generated_uri, pattern.staticsite_status_codes)
+    generated_filename = generate_filename(pattern.staticsite_filename, generated_uri, param_set)
+    return generated_uri, generated_filename, status, headers, body
 
 
 def write_file(
@@ -57,17 +56,53 @@ def write_file(
 ) -> None:
     try:
         if not full_path.parent.is_dir():
+            log.info(f'Creating directory: {full_path.parent}')
             full_path.parent.mkdir(parents=True)
         with open(full_path, 'wb') as f:
             f.write(content)
     except IOError as e:
         if e.errno == errno.EISDIR:
-            err = ('Output path: {} is a directory! Try adding a '
-                   '"distill_file" arg to your distill_url()')
             raise StaticSiteError(f'Output path "{full_path}" is a directory. '
-                                   'Try adding a "distill_file" arg to your path(...)')
+                                   'Try adding a "staticsite_filename" arg to your path(...)')
         else:
             raise
+
+
+def write_single_pattern(
+    file_path: Path | str,
+    pattern_name: str,
+    *args: tuple | None,
+    **kwargs: dict | None
+) -> None:
+    if isinstance(file_path, str):
+        file_path = Path(file_path)
+    pattern_name_parts = pattern_name.rsplit(':', 1)
+    if len(pattern_name_parts) == 2:
+        pattern_name = pattern_name_parts[1]
+        namespace = pattern_name_parts[0]
+    else:
+        if 'namespace' in kwargs:
+            namespace = kwargs['namespace']
+            del kwargs['namespace']
+        else:
+            namespace = None
+    if 'language_code' in kwargs:
+        language_code = kwargs['language_code']
+        del kwargs['language_code']
+    else:
+        language_code = None
+    if args:
+        param_set = args
+    elif kwargs:
+        param_set = kwargs
+    else:
+        param_set = ()
+    pattern = get_staticsite_url_by_name(pattern_name, namespace=namespace)
+    generated_uri, generated_filename, status, headers, body = render_pattern(pattern, param_set, language_code)
+    mime = get_header(headers, 'Content-Type')
+    full_path, local_uri = get_static_filepath(file_path, generated_filename, generated_uri)
+    log.info(f'Rendering single static page: {local_uri} -> {full_path} ("{mime}", {len(body)} bytes, from {pattern})')
+    write_file(Path(full_path), body)
 
 
 class StaticSiteRenderer:
@@ -95,8 +130,8 @@ class StaticSiteRenderer:
         else:
             # Static sites generally want to ignore hostnames
             settings.ALLOWED_HOSTS = ['*']
-        if self.enable_debug:
-            settings.DEBUG = True
+        #if self.enable_debug:
+        settings.DEBUG = True
         return self
 
     def __exit__(
@@ -123,16 +158,25 @@ class StaticSiteRenderer:
                 to_render.append((url, param_set, uri))
         return to_render
 
+    def urls(
+        self
+    ) -> Generator[str]:
+        """ Returns a list containing the generated URIs for all static site URL patterns. This does not render any
+        HTML content, just returns the URLs for the static site URL patterns. """
+        for url, param_set, uri in self.get_urls_to_render():
+            yield uri
 
-    def render_all_urls(
+    def render(
         self,
     ) -> Generator[tuple[URLPattern, str, str, int, dict, bytes]]:
+        """ Iterates all static site URL patterns, then calls each URL generator function for each pattern.
+        Yields the generated URI, filename, status, headers, and body. """
 
         def _render(item):
             rtn = []
             pattern, param_set, uri = item
             for lang in get_langs():
-                rtn.append(render_pattern(pattern, param_set, uri, lang))
+                rtn.append((pattern,) + render_pattern(pattern, param_set, lang))
             return rtn
 
         if self.concurrency == 1:
@@ -142,7 +186,6 @@ class StaticSiteRenderer:
                     # render = (pattern, generated_uri, generated_filename, status, headers, body)
                     yield render
         else:
-
             with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
                 results = executor.map(_render, self.get_urls_to_render())
                 for result in results:
@@ -159,26 +202,10 @@ class StaticSiteRenderer:
             output_dir = Path(output_dir)
         if not isinstance(output_dir, Path):
             raise StaticSiteError(f'Invalid output directory: {output_dir}')
-        for render in self.render_all_urls():
+        for render in self.render():
             pattern, generated_uri, generated_filename, status, headers, body = render
             mime = get_header(headers, 'Content-Type')
             full_path, local_uri = get_static_filepath(output_dir, generated_filename, generated_uri)
-            log.info(f'Rendering static page: {local_uri} -> {full_path} ["{mime}", {len(body)} bytes]')
+            log.info(f'Rendering static page: {local_uri} -> {full_path} ("{mime}", {len(body)} bytes, from {pattern})')
             write_file(Path(full_path), body)
         log.info(f'Rendering static site to directory complete')
-
-
-'''
-def render_to_dir(output_dir, urls_to_distill, stdout, parallel_render=1):
-    load_urls(stdout)
-    renderer = get_renderer(urls_to_distill, parallel_render)
-    for page_uri, file_name, http_response in renderer.render():
-        full_path, local_uri = get_filepath(output_dir, file_name, page_uri)
-        content = http_response.content
-        mime = http_response.get('Content-Type')
-        renamed = ' (renamed from "{}")'.format(page_uri) if file_name else ''
-        msg = 'Rendering page: {} -> {} ["{}", {} bytes] {}'
-        stdout(msg.format(local_uri, full_path, mime, len(content), renamed))
-        write_file(full_path, content)
-    return True
-'''

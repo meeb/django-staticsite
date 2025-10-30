@@ -55,13 +55,13 @@ def test_session_view(request):
     return HttpResponse(b'test', content_type='application/octet-stream')
 
 
-@set_func_attr('skip_render_all', True)
+@set_func_attr('skip_render_all_tests', True)
 def test_broken_view(request):
     # Trigger a normal Python exception when rendering
     a = 1 / 0
 
 
-@set_func_attr('skip_render_all', True)
+@set_func_attr('skip_render_all_tests', True)
 def test_http404_view(request):
     response = HttpResponse(b'404', content_type='application/octet-stream')
     response.status_code = 404
@@ -112,7 +112,7 @@ urlpatterns = [
 
 
 urlpatterns += i18n_patterns(
-    path('path/i18n/', include('tests.i18n_urls')),
+    path('path/i18n/', include('tests.i18n_urls', namespace='test_i18n')),
 )
 
 
@@ -122,13 +122,11 @@ urlpatterns += [
         test_no_param_view,
         name='re_path-no-param',
         staticsite_path=True,
-        staticsite_urls_generator=test_no_param_func,
-        staticsite_filename='test'),
+        staticsite_urls_generator=test_no_param_func),
     re_path(r'^re_path/no-func$',
         test_no_param_view,
         name='re_path-no-param-no-func',
-        staticsite_path=True,
-        staticsite_filename='test'),
+        staticsite_path=True),
     re_path(r'^re_path/positional-param/([\d]+)$',
         test_positional_param_view,
         name='re_path-positional-param',
@@ -167,7 +165,7 @@ urlpatterns += [
         staticsite_path=True,
         staticsite_status_codes=(404,),
         staticsite_urls_generator=test_no_param_func),
-    re_path(r'^re_path/flatpage/(?P<url>.+)$',
+    re_path(r'^re_path/flatpage(?P<url>.+)$',
         flatpage_view,
         name='re_path-flatpage',
         staticsite_path=True,
@@ -182,13 +180,11 @@ urlpatterns += [
         test_no_param_view,
         name='path-no-param',
         staticsite_path=True,
-        staticsite_urls_generator=test_no_param_func,
-        staticsite_filename='test'),
+        staticsite_urls_generator=test_no_param_func),
     path('path/no-func',
         test_no_param_view,
         name='path-no-param-no-func',
-        staticsite_path=True,
-        staticsite_filename='test'),
+        staticsite_path=True),
     path('path/positional-param/<param>',
         test_positional_param_view,
         name='path-positional-param',
@@ -227,7 +223,7 @@ urlpatterns += [
         staticsite_status_codes=(404,),
         staticsite_path=True,
         staticsite_urls_generator=test_no_param_func),
-    path('path/flatpage/<path:url>',
+    path('path/flatpage<path:url>',
         flatpage_view,
         name='path-flatpage',
         staticsite_path=True,

@@ -19,8 +19,7 @@ urlpatterns = [
         test_url_in_namespace_view,
         name='test_url_in_namespace',
         staticsite_path=True,
-        staticsite_urls_generator=test_no_param_func,
-        staticsite_filename='test_url_in_namespace'),
+        staticsite_urls_generator=test_no_param_func),
     path('path/sub-namespace/',
         include('tests.namespaced_sub_urls', namespace='sub_test_namespace')),
     # Uncomment to trigger a DistillError for including the same sub-urls more than

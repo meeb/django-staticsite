@@ -7,13 +7,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = True
 SECRET_KEY = 'test'
 ROOT_URLCONF = 'tests.urls'
-MIDDLEWARE = ['django.contrib.sessions.middleware.SessionMiddleware']
+MIDDLEWARE = [
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.flatpages.middleware.FlatpageFallbackMiddleware'
+]
 
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'test.sqlite3',
+        'NAME': BASE_DIR / 'staticsite.sqlite3',
+        'TEST': {
+            'NAME': BASE_DIR / 'staticsite-tests.sqlite3',
+        },
     }
 }
 
@@ -40,7 +46,7 @@ LOGGING = {
     },
     'handlers': {
         'log_to_stdout': {
-            'level': 'DEBUG',
+            'level': 'ERROR',   # Switch to INFO to see test file rendering
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
             },
@@ -48,7 +54,7 @@ LOGGING = {
     'loggers': {
         'main': {
             'handlers': ['log_to_stdout'],
-            'level': 'DEBUG',
+            'level': 'INFO',
             'propagate': True,
         }
     }

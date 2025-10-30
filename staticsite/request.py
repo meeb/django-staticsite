@@ -1,10 +1,12 @@
 import os
 from io import BytesIO
+from pathlib import Path
 from types import GeneratorType, FunctionType
 from inspect import getfullargspec
 from urllib.parse import urlencode
+from concurrent.futures import ThreadPoolExecutor
 from django.core.wsgi import get_wsgi_application
-from django.urls import reverse, NoReverseMatch, URLPattern
+from django.urls import reverse, NoReverseMatch
 from .errors import StaticSiteError
 
 
@@ -79,7 +81,8 @@ def internal_wsgi_request(
 def get_uri_values(
     func: FunctionType,
     view_name: str
-) -> list[str | None] | tuple[str | None]:
+) -> list[str | int | None]:
+    """ Call the staticsite_urls_generator function for a view and normalises the result to be a list. """
     fullargspec = getfullargspec(func)
     try:
         if 'view_name' in fullargspec.args:
@@ -90,24 +93,27 @@ def get_uri_values(
         raise StaticSiteError(f'Failed to call static site render function: {e}') from e
     if not v:
         return (None,)
-    elif isinstance(v, (list, tuple)):
+    if isinstance(v, (list, tuple)):
         return v
     elif isinstance(v, GeneratorType):
         return list(v)
     else:
-        raise StaticSiteError(f'Static site URL generator function returned an invalid type: {type(v)}')
+        raise StaticSiteError(f'Unable to get staticsite URI values, '
+                              f'generator function returned an invalid type: {type(v)}')
 
 
 def generate_uri(
     namespace: str | None,
     view_name: str,
-    param_set: list[str | None] | tuple[str | None]
+    param_set: list[str | None] | tuple[str | None] | None
 ) -> str:
     view_name_ns = namespace + ':' + view_name if namespace else view_name
+    if param_set is None:
+        param_set = ()
     if isinstance(param_set, (list, tuple)):
         try:
             uri = reverse(view_name, args=param_set)
-        except NoReverseMatch as e:
+        except NoReverseMatch:
             uri = reverse(view_name_ns, args=param_set)
     elif isinstance(param_set, dict):
         try:
@@ -115,7 +121,8 @@ def generate_uri(
         except NoReverseMatch:
             uri = reverse(view_name_ns, kwargs=param_set)
     else:
-        raise StaticSiteError(f'Static site URL generator function returned an invalid type: {type(param_set)}')
+        raise StaticSiteError(f'Unable to generate staticsite URI, '
+                              f'URL generator function returned an invalid type: {type(param_set)}')
     return uri
 
 
@@ -123,7 +130,7 @@ def get_static_filepath(
         output_dir: Path,
         file_name: str,
         page_uri: str
-    ) -> tuple[str, str]:
+    ) -> tuple[Path, str]:
     """ Returns the full path and local URI for a static file. """
     if file_name:
         local_uri = file_name

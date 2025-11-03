@@ -64,7 +64,7 @@ class StaticSiteConfig(AppConfig):
         """
 
         for pattern, namespace in iter_url_patterns():
-            if pattern.is_static:
+            if getattr(pattern, 'is_static', False):
                 # Make sure the staticsite path knows its namespace
                 pattern.staticsite_namespace = namespace
                 add_staticsite_url(pattern)

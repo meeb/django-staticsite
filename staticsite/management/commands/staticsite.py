@@ -5,7 +5,10 @@ import os
 from shutil import rmtree
 
 from logging import getLogger
-from django.core.management.base import (BaseCommand, CommandError)
+from django.core.management.base import BaseCommand, CommandError
+from staticsite.urls import get_staticsite_urls
+from staticsite.renderer import StaticSiteRenderer
+
 from django.conf import settings
 #from django_distill.distill import urls_to_distill
 #from django_distill.renderer import (run_collectstatic, render_to_dir,
@@ -47,7 +50,6 @@ class Command(BaseCommand):
             'test-target': self.command_test_target,
             'list-static-urls': self.command_list_static_urls,
             'list-publish-targets': self.command_list_publish_targets,
-
         }
         subcommand_name = options.get('subcommand')
         self.quiet = options.get('quiet')
@@ -58,7 +60,7 @@ class Command(BaseCommand):
         if subcommand_func:
             subcommand_func(*args, **options)
         else:
-            raise SystemExit(f'Unknown subcommand specified: {subcommand_name} (try "help")')
+            raise CommandError(f'Unknown subcommand specified: {subcommand_name} (try "help")')
 
     def command_help(self, *args, **options):
         self.write(self.help)
@@ -69,10 +71,10 @@ class Command(BaseCommand):
         self.write('Generate a local static site:')
         self.write('    ./manage.py staticsite generate --output-directory=<directory_name>')
         self.write('')
-        self.write('Generate a static site and publish it to remote object storage backend:')
+        self.write('Generate a static site and publish it to remote object storage backend ("target_name" defaults to "default"):')
         self.write('    ./manage.py staticsite publish --target=<target_name>')
         self.write('')
-        self.write('Test a publish target is configured correctly:')
+        self.write('Test a publish target is configured correctly ("target_name" defaults to "default"):')
         self.write('    ./manage.py staticsite test-target --target=<target_name>')
         self.write('')
         self.write('List all URL routes in the project that have been defined as static:')
@@ -101,7 +103,13 @@ class Command(BaseCommand):
         pass
 
     def command_list_static_urls(self, *args, **options):
-        pass
+        self.write('')
+        self.write('Defined static site URLs:')
+        self.write('')
+        with StaticSiteRenderer(get_staticsite_urls()) as staticsite_renderer:
+            for url in staticsite_renderer.urls():
+                self.write(f'    {url}')
+        self.write('')
 
     def command_list_publish_targets(self, *args, **options):
         pass

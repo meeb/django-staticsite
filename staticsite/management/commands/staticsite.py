@@ -1,22 +1,26 @@
-
-import os
-
-
 from shutil import rmtree
-
 from logging import getLogger
-from django.core.management.base import BaseCommand, CommandError
-from staticsite.urls import get_staticsite_urls
-from staticsite.renderer import StaticSiteRenderer
-
+from pathlib import Path
 from django.conf import settings
-#from django_distill.distill import urls_to_distill
-#from django_distill.renderer import (run_collectstatic, render_to_dir,
-#                                     copy_static_and_media_files, render_redirects)
-#from django_distill.errors import DistillError
+from django.core.management.base import BaseCommand, CommandError
+from django.core.management import call_command
+from staticsite.renderer import StaticSiteRenderer, render_redirects
+from staticsite.static import copy_static_and_media_files
+from staticsite.errors import StaticSiteError
 
 
 log = getLogger('main')
+
+
+def ask_question(question='Type \'yes\' to continue, or \'no\' to cancel: '):
+    return input(question).lower() == 'yes'
+
+
+def run_collectstatic():
+    try:
+        call_command('collectstatic', '--noinput')
+    except Exception as e:
+        raise CommandError(f'Error running "collectstatic": {e}') from e
 
 
 class Command(BaseCommand):
@@ -94,7 +98,62 @@ class Command(BaseCommand):
         self.write('')
 
     def command_generate(self, *args, **options):
-        pass
+        output_directory = options.get('output_directory')
+        if not output_directory:
+            output_directory = getattr(settings, 'STATICSITE_DIR', None)
+            if not output_directory:
+                raise CommandError('No static site directory specified, one of --output-directory or '
+                                   'settings.STATICSITE_DIR must be set.')
+        output_directory = Path(output_directory).resolve()
+        collectstatic = options.get('collectstatic')
+        force = options.get('force')
+        exclude_staticfiles = options.get('exclude_staticfiles')
+        generate_redirects = options.get('generate_redirects')
+        parallel_render = options.get('parallel_render')
+        if collectstatic:
+            self.write('Running "collectstatic" ...')
+            run_collectstatic()
+        if not exclude_staticfiles and not Path(settings.STATIC_ROOT).is_dir():
+            raise CommandError(f'Static source directory "{settings.STATIC_ROOT}" does not exist, run collectstatic')
+        self.write('')
+        self.write('You have requested to create a static version of his site into the output path directory:')
+        self.write('')
+        self.write(f'    Source static path:      {settings.STATIC_ROOT}')
+        self.write(f'    Static site output path: {output_directory}')
+        self.write('')
+        if output_directory.is_dir():
+            self.write('Static site output directory already exists, delete it first?')
+            self.write('This will delete and recreate all files in the output dir')
+            self.write('')
+            if force or ask_question():
+                self.write('Recreating output directory ...')
+                rmtree(output_directory)
+                output_directory.mkdir(parents=True)
+            else:
+                raise CommandError('Static site generation cancelled.')
+        else:
+            self.write('Static site output directory does not exist, create it?')
+            if force or ask_question():
+                self.write('Creating output directory ...')
+                output_directory.mkdir(parents=True)
+            else:
+                raise CommandError('Static site generation cancelled.')
+
+        self.write('')
+        self.write('Generating static site into directory: {}'.format(output_directory))
+        try:
+            with StaticSiteRenderer(concurrency=parallel_render) as staticsite_renderer:
+                staticsite_renderer.render_to_directory(output_directory)
+            if not exclude_staticfiles:
+                copy_static_and_media_files(output_directory)
+        except StaticSiteError as e:
+            raise CommandError(str(e)) from e
+        self.write('')
+        if generate_redirects:
+            self.write('Generating redirects')
+            render_redirects(output_directory)
+            self.write('')
+        self.write('Static site generation complete.')
 
     def command_publish(self, *args, **options):
         pass
@@ -111,75 +170,6 @@ class Command(BaseCommand):
                 self.write(f'    {url}')
         self.write('')
 
+
     def command_list_publish_targets(self, *args, **options):
         pass
-
-'''
-        output_dir = options.get('output_dir')
-        collectstatic = options.get('collectstatic')
-        quiet = options.get('quiet')
-        force = options.get('force')
-        exclude_staticfiles = options.get('exclude_staticfiles')
-        generate_redirects = options.get('generate_redirects')
-        parallel_render = options.get('parallel_render')
-        if quiet:
-            stdout = self._quiet
-        else:
-            stdout = self.stdout.write
-        if not output_dir:
-            output_dir = getattr(settings, 'DISTILL_DIR', None)
-            if not output_dir:
-                e = 'Usage: ./manage.py distill-local [directory]'
-                raise CommandError(e)
-        if collectstatic:
-            run_collectstatic(stdout)
-        if not exclude_staticfiles and not os.path.isdir(settings.STATIC_ROOT):
-            e = 'Static source directory does not exist, run collectstatic'
-            raise CommandError(e)
-        output_dir = os.path.abspath(os.path.expanduser(output_dir))
-        stdout('')
-        stdout('You have requested to create a static version of')
-        stdout('this site into the output path directory:')
-        stdout('')
-        stdout('    Source static path:  {}'.format(settings.STATIC_ROOT))
-        stdout('    Distill output path: {}'.format(output_dir))
-        stdout('')
-        if os.path.isdir(output_dir):
-            stdout('Distill output directory exists, clean up?')
-            stdout('This will delete and recreate all files in the output dir')
-            stdout('')
-            if force:
-                ans = 'yes'
-            else:
-                ans = input('Type \'yes\' to continue, or \'no\' to cancel: ')
-            if ans.lower() == 'yes':
-                stdout('Recreating output directory...')
-                rmtree(output_dir)
-                os.makedirs(output_dir)
-            else:
-                raise CommandError('Distilling site cancelled.')
-        else:
-            if force:
-                ans = 'yes'
-            else:
-                ans = input('Does not exist, create it? (YES/no): ')
-            if ans.lower() == 'yes':
-                stdout('Creating directory...')
-                os.makedirs(output_dir)
-            else:
-                raise CommandError('Aborting...')
-        stdout('')
-        stdout('Generating static site into directory: {}'.format(output_dir))
-        try:
-            render_to_dir(output_dir, urls_to_distill, stdout, parallel_render=parallel_render)
-            if not exclude_staticfiles:
-                copy_static_and_media_files(output_dir, stdout)
-        except DistillError as err:
-            raise CommandError(str(err)) from err
-        stdout('')
-        if generate_redirects:
-            stdout('Generating redirects')
-            render_redirects(output_dir, stdout)
-            stdout('')
-        stdout('Site generation complete.')
-'''

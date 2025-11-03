@@ -9,7 +9,7 @@ from django.urls import URLPattern
 from django.utils.translation import activate as activate_lang
 from django.contrib.redirects.models import Redirect
 from .errors import StaticSiteError, StaticSiteRenderError
-from .urls import get_staticsite_url_by_name
+from .urls import get_staticsite_urls, get_staticsite_url_by_name
 from .request import internal_wsgi_request, generate_uri, get_uri_values, get_static_filepath, generate_filename
 from .utils import get_header, get_langs
 
@@ -144,7 +144,7 @@ class StaticSiteRenderer:
 
     def __init__(
             self,
-            urls_to_render: list[URLPattern],
+            urls_to_render: list[URLPattern] | None = None,
             hostname: str | None = None,
             enable_debug: bool = True,
             concurrency: int = 1
@@ -152,7 +152,10 @@ class StaticSiteRenderer:
         self._site_debug = settings.DEBUG
         self._site_allowed_hosts = settings.ALLOWED_HOSTS
         self._application = None
-        self.urls_to_render = urls_to_render
+        if urls_to_render is None:
+            self.urls_to_render = get_staticsite_urls()
+        else:
+            self.urls_to_render = urls_to_render
         self.hostname = hostname
         self.enable_debug = enable_debug
         self.concurrency = concurrency

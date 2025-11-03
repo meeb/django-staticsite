@@ -8,6 +8,7 @@ from django.conf import settings, global_settings
 
 from django.urls import reverse, NoReverseMatch, URLPattern
 from django.utils.translation import activate as activate_lang
+from django.contrib.redirects.models import Redirect
 from django.db import connection, close_old_connections
 #from .logging import get_logger
 from .errors import StaticSiteError
@@ -103,6 +104,40 @@ def write_single_pattern(
     full_path, local_uri = get_static_filepath(file_path, generated_filename, generated_uri)
     log.info(f'Rendering single static page: {local_uri} -> {full_path} ("{mime}", {len(body)} bytes, from {pattern})')
     write_file(Path(full_path), body)
+
+
+def render_static_redirect(destination_url):
+    redir = [
+        f'<!DOCTYPE html>',
+        f'<html>',
+        f'<head>',
+        f'<meta charset="UTF-8">',
+        f'<meta http-equiv="refresh" content="0;URL={destination_url}" />',
+        f'<title>Redirecting to {destination_url}</title>',
+        f'<meta name="robots" content="noindex" />',
+        f'</head>',
+        f'<body>',
+        f'<h1>Redirecting to <a href="{destination_url}">{destination_url}</a></h1>',
+        f'<p>If you are not automatically redirected please click <a href="{destination_url}">this link</a></p>',
+        f'</html>'
+    ]
+    return '\n'.join(redir).encode()
+
+
+def render_redirects(output_dir):
+    if isinstance(output_dir, str):
+        output_dir = Path(output_dir)
+    for redirect in Redirect.objects.all():
+        redirect_path = redirect.old_path.lstrip('/')
+        if redirect_path.lower().endswith('.html'):
+            redirect_file = redirect_path
+        else:
+            redirect_file = str(Path(redirect_path) / 'index.html')
+        full_path, local_uri = get_static_filepath(output_dir, redirect_file, redirect_file)
+        content = render_static_redirect(redirect.new_path)
+        log.info(f'Rendering redirect page: {local_uri} -> {full_path} (redirects to: {redirect_file})')
+        write_file(full_path, content)
+    return True
 
 
 class StaticSiteRenderer:

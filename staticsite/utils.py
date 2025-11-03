@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from django.conf import settings, global_settings
 from django.urls import URLPattern, URLResolver, get_resolver
 

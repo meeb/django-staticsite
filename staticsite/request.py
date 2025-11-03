@@ -4,7 +4,6 @@ from pathlib import Path
 from types import GeneratorType, FunctionType
 from inspect import getfullargspec
 from urllib.parse import urlencode
-from concurrent.futures import ThreadPoolExecutor
 from django.core.wsgi import get_wsgi_application
 from django.urls import reverse, NoReverseMatch
 from .errors import StaticSiteError

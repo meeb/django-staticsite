@@ -1,11 +1,19 @@
+
 import os
+
+
 from shutil import rmtree
+
+from logging import getLogger
 from django.core.management.base import (BaseCommand, CommandError)
 from django.conf import settings
 #from django_distill.distill import urls_to_distill
 #from django_distill.renderer import (run_collectstatic, render_to_dir,
 #                                     copy_static_and_media_files, render_redirects)
 #from django_distill.errors import DistillError
+
+
+log = getLogger('main')
 
 
 class Command(BaseCommand):
@@ -27,7 +35,7 @@ class Command(BaseCommand):
         parser.add_argument('--generate-redirects', dest='generate_redirects', action='store_true')
         parser.add_argument('--parallel-render', dest='parallel_render', type=int, default=1)
 
-    def log(self, msg):
+    def write(self, msg):
         if not self.quiet:
             self.stdout.write(msg)
 
@@ -53,35 +61,35 @@ class Command(BaseCommand):
             raise SystemExit(f'Unknown subcommand specified: {subcommand_name} (try "help")')
 
     def command_help(self, *args, **options):
-        self.log(self.help)
-        self.log('')
-        self.log('This help message:')
-        self.log('    ./manage.py staticsite help')
-        self.log('')
-        self.log('Generate a local static site:')
-        self.log('    ./manage.py staticsite generate --output-directory=<directory_name>')
-        self.log('')
-        self.log('Generate a static site and publish it to remote object storage backend:')
-        self.log('    ./manage.py staticsite publish --target=<target_name>')
-        self.log('')
-        self.log('Test a publish target is configured correctly:')
-        self.log('    ./manage.py staticsite test-target --target=<target_name>')
-        self.log('')
-        self.log('List all URL routes in the project that have been defined as static:')
-        self.log('    ./manage.py staticsite list-static-urls')
-        self.log('')
-        self.log('List all defined publish targets:')
-        self.log('    ./manage.py staticsite list-publish-targets')
-        self.log('')
-        self.log('Additional options:')
-        self.log('')
-        self.log('    --collectstatic - when generating a local static site, also run "collectstatic"')
-        self.log('    --quiet - no log output')
-        self.log('    --force - automatically answer "yes" to all questions')
-        self.log('    --exclude-staticfiles - when generating a local static site, exclude static files')
-        self.log('    --generate-redirects - create static HTML redirect pages for any 301 or 303 redirects')
-        self.log('    --parallel-render=N - number of parallel processes to use when rendering the site, defaults to 1')
-        self.log('')
+        self.write(self.help)
+        self.write('')
+        self.write('This help message:')
+        self.write('    ./manage.py staticsite help')
+        self.write('')
+        self.write('Generate a local static site:')
+        self.write('    ./manage.py staticsite generate --output-directory=<directory_name>')
+        self.write('')
+        self.write('Generate a static site and publish it to remote object storage backend:')
+        self.write('    ./manage.py staticsite publish --target=<target_name>')
+        self.write('')
+        self.write('Test a publish target is configured correctly:')
+        self.write('    ./manage.py staticsite test-target --target=<target_name>')
+        self.write('')
+        self.write('List all URL routes in the project that have been defined as static:')
+        self.write('    ./manage.py staticsite list-static-urls')
+        self.write('')
+        self.write('List all defined publish targets:')
+        self.write('    ./manage.py staticsite list-publish-targets')
+        self.write('')
+        self.write('Additional options:')
+        self.write('')
+        self.write('    --collectstatic - when generating a local static site, also run "collectstatic"')
+        self.write('    --quiet - no log output')
+        self.write('    --force - automatically answer "yes" to all questions')
+        self.write('    --exclude-staticfiles - when generating a local static site, exclude static files')
+        self.write('    --generate-redirects - create static HTML redirect pages for any 301 or 303 redirects')
+        self.write('    --parallel-render=N - number of parallel processes to use when rendering the site, defaults to 1')
+        self.write('')
 
     def command_generate(self, *args, **options):
         pass

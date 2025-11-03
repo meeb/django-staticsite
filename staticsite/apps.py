@@ -16,16 +16,22 @@ class StaticSiteConfig(AppConfig):
     def ready(self) -> None:
 
         """
-        Monkeypatch path and re_path, currently this patches _path. This needs a "clean" upstream implementation. This
-        is only as a functional demonstration without patching the upstream codebase.
+        Monkeypatch path and re_path. Currently, this patches _path. This needs a "clean" upstream implementation. This
+        is only as a functional demonstration without needing to patch the upstream codebase.
 
         This also adds new attributes to the URLPattern objects to store the required data for static site generation.
         """
 
-        def _staticsite_path(route: str, view: FunctionType, kwargs: dict | None = None, name: str =None,
-                             staticsite_path: str = False, staticsite_urls_generator: FunctionType = None,
-                             staticsite_filename: str = None, staticsite_status_codes: tuple[int] | None = None,
-                             Pattern: RegexPattern | RoutePattern | None = None) -> URLResolver | URLPattern:
+        def _staticsite_path(
+                route: str,
+                view: FunctionType,
+                kwargs: dict | None = None, name: str =None,
+                staticsite_path: str = False,
+                staticsite_urls_generator: FunctionType = None,
+                staticsite_filename: str = None,
+                staticsite_status_codes: tuple[int] | None = None,
+                Pattern: RegexPattern | RoutePattern | None = None
+            ) -> URLResolver | URLPattern:
             pattern_or_resolver = conf._path(route, view, kwargs, name, Pattern=Pattern)
             if staticsite_path and isinstance(pattern_or_resolver, resolvers.URLPattern):
                 if not staticsite_urls_generator:

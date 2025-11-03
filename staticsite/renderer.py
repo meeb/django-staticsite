@@ -1,24 +1,20 @@
 import errno
+from logging import getLogger
 from pathlib import Path
 from types import TracebackType
 from collections.abc import Generator
-import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
-from django.conf import settings, global_settings
-
-from django.urls import reverse, NoReverseMatch, URLPattern
+from django.conf import settings
+from django.urls import URLPattern
 from django.utils.translation import activate as activate_lang
 from django.contrib.redirects.models import Redirect
-from django.db import connection, close_old_connections
-#from .logging import get_logger
-from .errors import StaticSiteError
+from .errors import StaticSiteError, StaticSiteRenderError
 from .urls import get_staticsite_url_by_name
 from .request import internal_wsgi_request, generate_uri, get_uri_values, get_static_filepath, generate_filename
 from .utils import get_header, get_langs
 
 
-import logging
-log = logging.getLogger('main')
+log = getLogger('main')
 
 
 def render_uri(
@@ -32,9 +28,9 @@ def render_uri(
     try:
         status_code = int(status_parts[0])
     except ValueError:
-        raise StaticSiteError(f'Invalid HTTP status: {status} for URI: {uri}')
+        raise StaticSiteRenderError(f'Invalid HTTP status: {status} for URI: {uri}')
     if status_code not in status_codes:
-        raise StaticSiteError(f'Unexpected HTTP status: {status} for URI: {uri}')
+        raise StaticSiteRenderError(f'Unexpected HTTP status: {status} for URI: {uri}')
     return status_code, headers, body
 
 
@@ -106,7 +102,9 @@ def write_single_pattern(
     write_file(Path(full_path), body)
 
 
-def render_static_redirect(destination_url):
+def render_static_redirect(
+        destination_url: str
+    ) -> bytes:
     redir = [
         f'<!DOCTYPE html>',
         f'<html>',
@@ -124,7 +122,9 @@ def render_static_redirect(destination_url):
     return '\n'.join(redir).encode()
 
 
-def render_redirects(output_dir):
+def render_redirects(
+        output_dir: Path | str
+    ) -> bool:
     if isinstance(output_dir, str):
         output_dir = Path(output_dir)
     for redirect in Redirect.objects.all():
@@ -163,7 +163,7 @@ class StaticSiteRenderer:
         if self.hostname:
             settings.ALLOWED_HOSTS = [self.hostname]
         else:
-            # Static sites generally want to ignore hostnames
+            # Static sites generally want to ignore hostnames when being generated
             settings.ALLOWED_HOSTS = ['*']
         #if self.enable_debug:
         settings.DEBUG = True
@@ -214,19 +214,12 @@ class StaticSiteRenderer:
                 rtn.append((pattern,) + render_pattern(pattern, param_set, lang))
             return rtn
 
-        if self.concurrency == 1:
-            results = map(_render, self.get_urls_to_render())
+        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+            results = executor.map(_render, self.get_urls_to_render())
             for result in results:
                 for render in result:
                     # render = (pattern, generated_uri, generated_filename, status, headers, body)
                     yield render
-        else:
-            with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-                results = executor.map(_render, self.get_urls_to_render())
-                for result in results:
-                    for render in result:
-                        # render = (pattern, generated_uri, generated_filename, status, headers, body)
-                        yield render
 
     def render_to_directory(
         self,

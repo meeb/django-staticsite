@@ -1,5 +1,3 @@
-from _ast import pattern
-
 from django.core.exceptions import ImproperlyConfigured
 from django.urls import URLPattern
 

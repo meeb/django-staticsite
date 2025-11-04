@@ -165,11 +165,10 @@ class Command(BaseCommand):
         self.write('')
         self.write('Defined static site URLs:')
         self.write('')
-        with StaticSiteRenderer(get_staticsite_urls()) as staticsite_renderer:
+        with StaticSiteRenderer() as staticsite_renderer:
             for url in staticsite_renderer.urls():
                 self.write(f'    {url}')
         self.write('')
-
 
     def command_list_publish_targets(self, *args, **options):
         pass

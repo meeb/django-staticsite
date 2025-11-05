@@ -1,5 +1,4 @@
 from datetime import timedelta
-from django.conf import settings
 from django.http import HttpResponse
 from django.urls import include, path, re_path, reverse
 from django.conf.urls.i18n import i18n_patterns
@@ -58,7 +57,7 @@ def test_session_view(request):
 @set_func_attr('skip_render_all_tests', True)
 def test_broken_view(request):
     # Trigger a normal Python exception when rendering
-    a = 1 / 0
+    _ = 1 / 0
 
 
 @set_func_attr('skip_render_all_tests', True)

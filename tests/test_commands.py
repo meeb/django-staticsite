@@ -1,6 +1,7 @@
 
 from io import StringIO
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 
 
@@ -15,7 +16,7 @@ class StaticSiteCommandTestSuite(TestCase):
             self.assertEqual(command_lines[0], 'Generates a local static site')
 
     def test_unknown_command(self):
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(CommandError):
             call_command('staticsite', 'unknown')
 
     def test_quiet_flag(self):

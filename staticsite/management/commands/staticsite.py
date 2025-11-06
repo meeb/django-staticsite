@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.core.management import call_command
 from staticsite.renderer import StaticSiteRenderer, render_redirects
-from staticsite.static import copy_static_and_media_files
+from staticsite.static import copy_static_and_media_files, get_publishing_targets
 from staticsite.errors import StaticSiteError
 
 
@@ -171,4 +171,16 @@ class Command(BaseCommand):
         self.write('')
 
     def command_list_publish_targets(self, *args, **options):
-        pass
+        self.write('')
+        self.write('Defined static site publishing targets:')
+        self.write('')
+        publishing_targets = get_publishing_targets()
+        if publishing_targets:
+            for target_name, target_options in publishing_targets.items():
+                self.write(f'    {target_name}:')
+                for param, value in target_options.items():
+                    self.write(f'        {param}: {value}')
+            self.write('')
+        else:
+            self.write('    No publishing targets defined, add one to settings.STATICSITE_PUBLISHING_TARGETS')
+            self.write('')

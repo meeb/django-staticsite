@@ -71,6 +71,19 @@ TEMPLATES = [
 ]
 
 
+STATICSITE_PUBLISHING_TARGETS = {
+    'test-s3-container': {
+        'ENGINE': 'staticsite.backends.amazon_s3',
+        'PUBLIC_URL': 'https://test-public-url/',
+        'ACCESS_KEY_ID': 'test-access-key',
+        'SECRET_ACCESS_KEY': 'test-secret-key',
+        'BUCKET': 'test-bucket',
+        'ENDPOINT_URL': 'https://test-endpoint-url/',
+        'DEFAULT_CONTENT_TYPE': 'application/octet-stream',
+    }
+}
+
+
 SITE_ID = 1
 
 

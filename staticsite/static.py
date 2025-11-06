@@ -75,3 +75,7 @@ def copy_static_and_media_files(
     else:
         log.error('MEDIA_URL and MEDIA_ROOT must be set in settings.py to copy media files')
     return True
+
+
+def get_publishing_targets() -> dict:
+    return getattr(settings, 'STATICSITE_PUBLISHING_TARGETS', {})

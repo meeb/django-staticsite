@@ -12,3 +12,15 @@ dependencies = [
 dev = [
     "ruff>=0.14.3",
 ]
+
+[project.optional-dependencies]
+amazon_s3 = [
+  "boto3>=1.40.68"
+]
+google_storage = [
+    "google-cloud-storage>=3.5.0",
+]
+microsoft_azure_storage = [
+    "azure-identity>=1.25.1",
+    "azure-storage-blob>=12.27.1",
+]

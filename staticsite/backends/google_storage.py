@@ -1,13 +1,13 @@
 import os
 from pathlib import Path
-from staticsite.publish import PublisherBackendBase, check_publisher_dependencies
+from staticsite.publisher import PublisherBackendBase, check_publisher_dependencies
 from staticsite.errors import StaticSitePublishError
 from base64 import b64decode
 from binascii import hexlify
 
 
 discovery = check_publisher_dependencies(
-    "staticsite.backends.google_storage", "googleapiclient", "discovery"
+    "staticsite.backends.google_storage", "googleapiclientgoogleapiclient", "discovery"
 )
 storage = check_publisher_dependencies(
     "staticsite.backends.google_storage", "google.cloud", "storage"
@@ -52,7 +52,7 @@ class GoogleCloudStorageBackend(PublisherBackendBase):
 
     def compare_file(self, local_name: Path | str, remote_name: str) -> bool:
         b = self.d["bucket"].get_blob(remote_name)
-        local_hash = self._get_local_file_hash(local_name)
+        local_hash = self.get_local_file_hash(local_name)
         remote_hash = str(hexlify(b64decode(b.md5_hash)).decode())
         return local_hash == remote_hash
 

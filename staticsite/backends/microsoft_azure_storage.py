@@ -1,7 +1,7 @@
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit, quote_plus
 from time import sleep
-from staticsite.publish import PublisherBackendBase, check_publisher_dependencies
+from staticsite.publisher import PublisherBackendBase, check_publisher_dependencies
 from staticsite.errors import StaticSitePublishError
 from binascii import hexlify
 
@@ -37,17 +37,17 @@ class AzureBlobStorateBackend(PublisherBackendBase):
     def connection_string(self) -> str:
         return self.options.get("CONNECTION_STRING", "")
 
-    def _get_container(self):
+    def get_container(self):
         return self.d["connection"].get_container_client(
             container=self.account_container()
         )
 
-    def _get_blob(self, name: str) -> BlobClient:
+    def get_blob(self, name: str) -> BlobClient:
         return self.d["connection"].get_blob_client(
             container=self.account_container(), blob=name
         )
 
-    def _get_blob_url(self, blob: BlobClient) -> str:
+    def get_blob_url(self, blob: BlobClient) -> str:
         blob_parts = urlsplit(blob.url)
         prefix = "/{}/".format(quote_plus(self.account_container()))
         path = blob_parts.path
@@ -69,14 +69,14 @@ class AzureBlobStorateBackend(PublisherBackendBase):
         return True
 
     def get_remote_files(self) -> set[str]:
-        container = self._get_container()
+        container = self.get_container()
         rtn = set()
         for obj in container.list_blobs():
             rtn.add(obj.name)
         return rtn
 
     def delete_remote_file(self, remote_name: str) -> bool:
-        container = self._get_container()
+        container = self.get_container()
         return container.delete_blob(remote_name)
 
     def check_file(self, local_name: Path | str, url: str) -> bool:
@@ -84,17 +84,17 @@ class AzureBlobStorateBackend(PublisherBackendBase):
         return True
 
     def compare_file(self, local_name: Path | str, remote_name: str) -> bool:
-        blob = self._get_blob(remote_name)
+        blob = self.get_blob(remote_name)
         properties = blob.get_blob_properties()
         content_md5 = properties.get("content_settings", {}).get("content_md5")
         if not content_md5:
             return False
-        local_hash = self._get_local_file_hash(local_name)
+        local_hash = self.get_local_file_hash(local_name)
         remote_hash = str(hexlify(bytes(content_md5)).decode())
         return local_hash == remote_hash
 
     def upload_file(self, local_name: Path | str, remote_name: str) -> bool:
-        blob = self._get_blob(remote_name)
+        blob = self.get_blob(remote_name)
         mimetype = self.detect_local_file_mimetype(local_name)
         content_settings = ContentSettings(content_type=mimetype)
         with open(local_name, "rb") as data:
@@ -102,7 +102,7 @@ class AzureBlobStorateBackend(PublisherBackendBase):
                 data, overwrite=True, content_settings=content_settings
             )
             if result:
-                actual_url = self._get_blob_url(blob)
+                actual_url = self.get_blob_url(blob)
                 self.d.setdefault("azure_uploads_to_check", []).append(
                     (local_name, remote_name, actual_url)
                 )
@@ -110,9 +110,9 @@ class AzureBlobStorateBackend(PublisherBackendBase):
 
     def _check_file(self, local_name: Path | str, actual_url: str) -> bool:
         # Azure specific patched check_file with retries to account for Azure being slow
-        local_hash = self._get_local_file_hash(local_name)
+        local_hash = self.get_local_file_hash(local_name)
         for i in range(self.RETRY_ATTEMPTS):
-            remote_hash = self._get_url_hash(actual_url)
+            remote_hash = self.get_url_hash(actual_url)
             if not remote_hash:
                 sleep(self.SLEEP_BETWEEN_RETRIES)
                 continue
@@ -128,7 +128,7 @@ class AzureBlobStorateBackend(PublisherBackendBase):
         to_check = self.d.setdefault("azure_uploads_to_check", [])
         for local_name, remote_name, actual_url in to_check:
             # Verify the upload, this may require retries
-            self._check_file(local_name, actual_url)
+            self.check_file(local_name, actual_url)
         # If we reached here, no StaticSitePublishError was raised
         return True
 

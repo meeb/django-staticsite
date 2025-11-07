@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.core.management import call_command
 from staticsite.renderer import StaticSiteRenderer, render_redirects
 from staticsite.static import copy_static_and_media_files
-from staticsite.publish import get_publishing_targets, get_publishing_target
+from staticsite.publisher import get_publishing_targets, get_publishing_target
 from staticsite.errors import StaticSiteError
 
 

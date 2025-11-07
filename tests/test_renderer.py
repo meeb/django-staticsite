@@ -5,8 +5,6 @@ from django.conf import settings
 from django.contrib.flatpages.models import FlatPage
 from django.apps import apps as django_apps
 from django.utils.translation import activate as activate_lang
-
-
 from staticsite.urls import get_staticsite_urls, get_staticsite_url_by_name
 from staticsite.request import get_uri_values, generate_uri
 from staticsite.renderer import StaticSiteRenderer, render_uri, write_single_pattern

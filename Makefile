@@ -9,5 +9,9 @@ lint:
 		uvx ruff check
 
 
+format:
+		uvx ruff format
+
+
 runserver:
 		uv run manage.py runserver

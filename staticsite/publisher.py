@@ -122,12 +122,20 @@ def get_publishing_target(target_name: str) -> dict:
 class PublisherBackendBase(object):
     """Generic base class for all backends, mostly an interface / template."""
 
-    REQUIRED_OPTIONS = ()
+    REQUIRED_OPTIONS = ("PUBLIC_URL",)
     HTTP_TIMEOUT = 10
 
-    def __init__(self, source_dir: Path | None, options: dict) -> None:
+    def __init__(self, source_dir: Path | str, options: dict) -> None:
         if isinstance(source_dir, str):
             source_dir = Path(source_dir)
+        if not isinstance(source_dir, Path):
+            raise StaticSitePublishError(
+                f"Publishing source directory must be a str or Path, got: {type(source_dir)}"
+            )
+        if not source_dir.is_dir():
+            raise StaticSitePublishError(
+                f"Publishing source directory does not exist: {source_dir}"
+            )
         self.source_dir = source_dir
         self.options = options
         self.local_files = set()
@@ -135,9 +143,9 @@ class PublisherBackendBase(object):
         self.remote_files = set()
         self.remote_url_parts = urlsplit(options.get("PUBLIC_URL", ""))
         self.d = {}
-        self._validate_options()
+        self.validate_options()
 
-    def _validate_options(self) -> None:
+    def validate_options(self) -> None:
         for o in self.REQUIRED_OPTIONS:
             if o not in self.options:
                 raise StaticSitePublishError(
@@ -153,14 +161,16 @@ class PublisherBackendBase(object):
             for f in files:
                 self.local_files.add(root / f)
 
-    def _get_local_file_hash(
+    def get_local_file_hash(
         self,
         file_path: Path | str,
         digest_func: FunctionType = md5,
         chunk: int = 1048576,
     ) -> bool | str:
-        if not self._file_exists(file_path):
-            return False
+        if not self.file_exists(file_path):
+            raise StaticSitePublishError(
+                f"Local static site file does not exist: {file_path}"
+            )
         # md5 is used by Amazon S3 and Google Storage
         digest = digest_func()
         with open(file_path, "rb") as f:
@@ -171,7 +181,7 @@ class PublisherBackendBase(object):
                 digest.update(data)
         return digest.hexdigest()
 
-    def _get_url_hash(
+    def get_url_hash(
         self, url: str, digest_func: FunctionType = md5, chunk: int = 1024
     ) -> bool | str:
         # CDN cache buster
@@ -195,9 +205,13 @@ class PublisherBackendBase(object):
                 digest.update(block)
         return digest.hexdigest()
 
-    def _file_exists(self, file_path: Path | str) -> bool:
+    def file_exists(self, file_path: Path | str) -> bool:
         if isinstance(file_path, str):
             file_path = Path(file_path)
+        if not isinstance(file_path, Path):
+            raise StaticSitePublishError(
+                f"File path must be a str or Path, got: {type(file_path)}"
+            )
         return file_path.is_file()
 
     def detect_local_file_mimetype(
@@ -216,12 +230,19 @@ class PublisherBackendBase(object):
     def generate_remote_url(self, local_name: Path | str):
         if isinstance(local_name, str):
             local_name = Path(local_name)
+        if not isinstance(local_name, Path):
+            raise StaticSitePublishError(
+                f"File path must be a str or Path, got: {type(local_name)}"
+            )
         if not local_name.is_relative_to(self.source_dir):
             raise StaticSitePublishError(
                 f'Local static site file "{local_name}" is not '
                 f'in source dir "{self.source_dir}"'
             )
-        remote_uri = self.remote_url_parts.path + self.remote_path(local_name)
+        remote_path_prefix = self.remote_url_parts.path
+        if remote_path_prefix.startswith("/"):
+            remote_path_prefix = remote_path_prefix[1:]
+        remote_uri = remote_path_prefix + self.remote_path(local_name)
         return urlunsplit(
             (
                 self.remote_url_parts.scheme,
@@ -239,12 +260,12 @@ class PublisherBackendBase(object):
         return self.local_files
 
     def check_file(self, local_name: Path | None, url: str) -> bool:
-        if not self._file_exists(local_name):
+        if not self.file_exists(local_name):
             raise StaticSitePublishError(
                 f"Local static site file does not exist: {local_name}"
             )
-        local_hash = self._get_local_file_hash(local_name)
-        remote_hash = self._get_url_hash(url)
+        local_hash = self.get_local_file_hash(local_name)
+        remote_hash = self.get_url_hash(url)
         return local_hash == remote_hash
 
     def final_checks(self) -> None:

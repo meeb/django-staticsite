@@ -1,5 +1,5 @@
 from pathlib import Path
-from staticsite.publish import PublisherBackendBase, check_publisher_dependencies
+from staticsite.publisher import PublisherBackendBase, check_publisher_dependencies
 
 
 boto3 = check_publisher_dependencies("staticsite.backends.amazon_s3", "boto3")
@@ -10,7 +10,7 @@ class AmazonS3Backend(PublisherBackendBase):
 
     REQUIRED_OPTIONS = ("ENGINE", "PUBLIC_URL", "BUCKET")
 
-    def _get_object(self, name: str) -> dict:
+    def get_object(self, name: str) -> dict:
         bucket = self.account_container()
         return self.d["connection"].head_object(Bucket=bucket, Key=name)
 
@@ -52,8 +52,8 @@ class AmazonS3Backend(PublisherBackendBase):
         return True
 
     def compare_file(self, local_name: Path | str, remote_name: str) -> bool:
-        obj = self._get_object(remote_name)
-        local_hash = self._get_local_file_hash(local_name)
+        obj = self.get_object(remote_name)
+        local_hash = self.get_local_file_hash(local_name)
         return local_hash == obj["ETag"][1:-1]
 
     def upload_file(self, local_name: Path | str, remote_name: str) -> bool:

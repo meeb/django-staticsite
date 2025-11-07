@@ -6,7 +6,7 @@ from django.conf import settings
 from staticsite.static import copy_static_and_media_files
 
 
-class DjangoDistillStaticFilesTestSuite(TestCase):
+class StaticSiteStaticTestSuite(TestCase):
     def test_copying_static_and_media_files(self):
         # Test default behavior
         with TemporaryDirectory(delete=False) as tempdir:

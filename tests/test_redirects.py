@@ -7,7 +7,7 @@ from django.contrib.redirects.models import Redirect
 from staticsite.renderer import render_static_redirect, render_redirects
 
 
-class DjangoDistillRedirectsTestSuite(TestCase):
+class StaticSiteRedirectsTestSuite(TestCase):
     def setUp(self):
         # Create some test redirects
         site = django_apps.get_model("sites.Site")

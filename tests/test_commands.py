@@ -4,7 +4,7 @@ from django.core.management.base import CommandError
 from django.test import TestCase
 
 
-class StaticSiteCommandTestSuite(TestCase):
+class StaticSiteCommandsTestSuite(TestCase):
     def test_command_help(self):
         with StringIO() as o:
             call_command("staticsite", "help", stdout=o)

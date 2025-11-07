@@ -2,91 +2,72 @@ from pathlib import Path
 from staticsite.publish import PublisherBackendBase, check_publisher_dependencies
 
 
-boto3 = check_publisher_dependencies('staticsite.backends.amazon_s3', 'boto3')
+boto3 = check_publisher_dependencies("staticsite.backends.amazon_s3", "boto3")
 
 
 class AmazonS3Backend(PublisherBackendBase):
-    """ Publisher for Amazon S3. """
+    """Publisher for Amazon S3."""
 
-    REQUIRED_OPTIONS = ('ENGINE', 'PUBLIC_URL', 'BUCKET')
+    REQUIRED_OPTIONS = ("ENGINE", "PUBLIC_URL", "BUCKET")
 
-    def _get_object(
-        self,
-        name: str
-    ) -> dict:
+    def _get_object(self, name: str) -> dict:
         bucket = self.account_container()
-        return self.d['connection'].head_object(Bucket=bucket, Key=name)
+        return self.d["connection"].head_object(Bucket=bucket, Key=name)
 
-    def account_username(
-        self
-    ) -> str:
-        return self.options.get('ACCESS_KEY_ID', '')
+    def account_username(self) -> str:
+        return self.options.get("ACCESS_KEY_ID", "")
 
-    def account_container(
-        self
-    ) -> str:
-        return self.options.get('BUCKET', '')
+    def account_container(self) -> str:
+        return self.options.get("BUCKET", "")
 
     def authenticate(
         self,
     ) -> bool:
         access_key_id = self.account_username()
-        secret_access_key = self.options.get('SECRET_ACCESS_KEY', '')
-        endpoint_url = self.options.get('ENDPOINT_URL', None)
+        secret_access_key = self.options.get("SECRET_ACCESS_KEY", "")
+        endpoint_url = self.options.get("ENDPOINT_URL", None)
         bucket = self.account_container()
         if access_key_id and secret_access_key:
-            self.d['connection'] = boto3.client(
-                's3',
+            self.d["connection"] = boto3.client(
+                "s3",
                 aws_access_key_id=access_key_id,
                 aws_secret_access_key=secret_access_key,
-                endpoint_url=endpoint_url
+                endpoint_url=endpoint_url,
             )
         else:
-            self.d['connection'] = boto3.client('s3')
-        self.d['bucket'] = bucket
+            self.d["connection"] = boto3.client("s3")
+        self.d["bucket"] = bucket
         return True
 
-    def get_remote_files(
-        self
-    ) -> set[str]:
+    def get_remote_files(self) -> set[str]:
         rtn = set()
-        response = self.d['connection'].list_objects_v2(Bucket=self.d['bucket'])
-        if 'Contents' in response:
-            for obj in response['Contents']:
-                rtn.add(obj['Key'])
+        response = self.d["connection"].list_objects_v2(Bucket=self.d["bucket"])
+        if "Contents" in response:
+            for obj in response["Contents"]:
+                rtn.add(obj["Key"])
         return rtn
 
-    def delete_remote_file(
-        self,
-        remote_name: str
-    ):
-        self.d['connection'].delete_object(Bucket=self.d['bucket'], Key=remote_name)
+    def delete_remote_file(self, remote_name: str):
+        self.d["connection"].delete_object(Bucket=self.d["bucket"], Key=remote_name)
         return True
 
-    def compare_file(
-        self,
-        local_name: Path | str,
-        remote_name: str
-    ) -> bool:
+    def compare_file(self, local_name: Path | str, remote_name: str) -> bool:
         obj = self._get_object(remote_name)
         local_hash = self._get_local_file_hash(local_name)
-        return local_hash == obj['ETag'][1:-1]
+        return local_hash == obj["ETag"][1:-1]
 
-    def upload_file(
-        self,
-        local_name: Path | str,
-        remote_name: str
-    ) -> bool:
-        default_content_type = self.options.get('DEFAULT_CONTENT_TYPE', 'application/octet-stream')
+    def upload_file(self, local_name: Path | str, remote_name: str) -> bool:
+        default_content_type = self.options.get(
+            "DEFAULT_CONTENT_TYPE", "application/octet-stream"
+        )
         content_type = self.detect_local_file_mimetype(local_name, default_content_type)
-        extra_args = {'ContentType': content_type}
-        self.d['connection'].upload_file(local_name, self.d['bucket'], remote_name, ExtraArgs=extra_args)
+        extra_args = {"ContentType": content_type}
+        self.d["connection"].upload_file(
+            local_name, self.d["bucket"], remote_name, ExtraArgs=extra_args
+        )
         return True
 
-    def create_remote_dir(
-        self,
-        remote_dir_name: str
-    ) -> bool:
+    def create_remote_dir(self, remote_dir_name: str) -> bool:
         # not required for S3 buckets
         return True
 

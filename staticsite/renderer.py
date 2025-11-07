@@ -10,82 +10,85 @@ from django.utils.translation import activate as activate_lang
 from django.contrib.redirects.models import Redirect
 from .errors import StaticSiteError, StaticSiteRenderError
 from .urls import get_staticsite_urls, get_staticsite_url_by_name
-from .request import internal_wsgi_request, generate_uri, get_uri_values, get_static_filepath, generate_filename
+from .request import (
+    internal_wsgi_request,
+    generate_uri,
+    get_uri_values,
+    get_static_filepath,
+    generate_filename,
+)
 from .utils import get_header, get_langs
 
 
-log = getLogger('main')
+log = getLogger("main")
 
 
 def render_uri(
-    uri: str,
-    status_codes: tuple[int] | list[int]
+    uri: str, status_codes: tuple[int] | list[int]
 ) -> tuple[int, list[tuple[str, str]], bytes]:
     if not isinstance(status_codes, (tuple, list)):
         status_codes = (200,)
-    status, headers, body = internal_wsgi_request(path=uri, method='GET')
-    status_parts = status.split(' ', 1)
+    status, headers, body = internal_wsgi_request(path=uri, method="GET")
+    status_parts = status.split(" ", 1)
     try:
         status_code = int(status_parts[0])
     except ValueError:
-        raise StaticSiteRenderError(f'Invalid HTTP status: {status} for URI: {uri}')
+        raise StaticSiteRenderError(f"Invalid HTTP status: {status} for URI: {uri}")
     if status_code not in status_codes:
-        raise StaticSiteRenderError(f'Unexpected HTTP status: {status} for URI: {uri}')
+        raise StaticSiteRenderError(f"Unexpected HTTP status: {status} for URI: {uri}")
     return status_code, headers, body
 
 
 def render_pattern(
     pattern: URLPattern,
     param_set: list[str | None] | tuple[str | None],
-    language_code: str | None
+    language_code: str | None,
 ) -> tuple[URLPattern, str, str, int, list, bytes]:
     if language_code:
         activate_lang(language_code)
     generated_uri = generate_uri(pattern.staticsite_namespace, pattern.name, param_set)
     status, headers, body = render_uri(generated_uri, pattern.staticsite_status_codes)
-    generated_filename = generate_filename(pattern.staticsite_filename, generated_uri, param_set)
+    generated_filename = generate_filename(
+        pattern.staticsite_filename, generated_uri, param_set
+    )
     return generated_uri, generated_filename, status, headers, body
 
 
-def write_file(
-    full_path: Path,
-    content: bytes
-) -> None:
+def write_file(full_path: Path, content: bytes) -> None:
     try:
         if not full_path.parent.is_dir():
-            log.info(f'Creating directory: {full_path.parent}')
+            log.info(f"Creating directory: {full_path.parent}")
             full_path.parent.mkdir(parents=True)
-        with open(full_path, 'wb') as f:
+        with open(full_path, "wb") as f:
             f.write(content)
     except IOError as e:
         if e.errno == errno.EISDIR:
-            raise StaticSiteError(f'Output path "{full_path}" is a directory. '
-                                   'Try adding a "staticsite_filename" arg to your path(...)')
+            raise StaticSiteError(
+                f'Output path "{full_path}" is a directory. '
+                'Try adding a "staticsite_filename" arg to your path(...)'
+            )
         else:
             raise
 
 
 def write_single_pattern(
-    file_path: Path | str,
-    pattern_name: str,
-    *args: tuple | None,
-    **kwargs: dict | None
+    file_path: Path | str, pattern_name: str, *args: tuple | None, **kwargs: dict | None
 ) -> None:
     if isinstance(file_path, str):
         file_path = Path(file_path)
-    pattern_name_parts = pattern_name.rsplit(':', 1)
+    pattern_name_parts = pattern_name.rsplit(":", 1)
     if len(pattern_name_parts) == 2:
         pattern_name = pattern_name_parts[1]
         namespace = pattern_name_parts[0]
     else:
-        if 'namespace' in kwargs:
-            namespace = kwargs['namespace']
-            del kwargs['namespace']
+        if "namespace" in kwargs:
+            namespace = kwargs["namespace"]
+            del kwargs["namespace"]
         else:
             namespace = None
-    if 'language_code' in kwargs:
-        language_code = kwargs['language_code']
-        del kwargs['language_code']
+    if "language_code" in kwargs:
+        language_code = kwargs["language_code"]
+        del kwargs["language_code"]
     else:
         language_code = None
     if args:
@@ -95,60 +98,65 @@ def write_single_pattern(
     else:
         param_set = ()
     pattern = get_staticsite_url_by_name(pattern_name, namespace=namespace)
-    generated_uri, generated_filename, status, headers, body = render_pattern(pattern, param_set, language_code)
-    mime = get_header(headers, 'Content-Type')
-    full_path, local_uri = get_static_filepath(file_path, generated_filename, generated_uri)
-    log.info(f'Rendering single static page: {local_uri} -> {full_path} ("{mime}", {len(body)} bytes, from {pattern})')
+    generated_uri, generated_filename, status, headers, body = render_pattern(
+        pattern, param_set, language_code
+    )
+    mime = get_header(headers, "Content-Type")
+    full_path, local_uri = get_static_filepath(
+        file_path, generated_filename, generated_uri
+    )
+    log.info(
+        f'Rendering single static page: {local_uri} -> {full_path} ("{mime}", {len(body)} bytes, from {pattern})'
+    )
     write_file(Path(full_path), body)
 
 
-def render_static_redirect(
-        destination_url: str
-    ) -> bytes:
+def render_static_redirect(destination_url: str) -> bytes:
     redir = [
-        f'<!DOCTYPE html>',
-        f'<html>',
-        f'<head>',
-        f'<meta charset="UTF-8">',
+        "<!DOCTYPE html>",
+        "<html>",
+        "<head>",
+        '<meta charset="UTF-8">',
         f'<meta http-equiv="refresh" content="0;URL={destination_url}" />',
-        f'<title>Redirecting to {destination_url}</title>',
-        f'<meta name="robots" content="noindex" />',
-        f'</head>',
-        f'<body>',
+        f"<title>Redirecting to {destination_url}</title>",
+        '<meta name="robots" content="noindex" />',
+        "</head>",
+        "<body>",
         f'<h1>Redirecting to <a href="{destination_url}">{destination_url}</a></h1>',
         f'<p>If you are not automatically redirected please click <a href="{destination_url}">this link</a></p>',
-        f'</html>'
+        "</html>",
     ]
-    return '\n'.join(redir).encode()
+    return "\n".join(redir).encode()
 
 
-def render_redirects(
-        output_dir: Path | str
-    ) -> bool:
+def render_redirects(output_dir: Path | str) -> bool:
     if isinstance(output_dir, str):
         output_dir = Path(output_dir)
     for redirect in Redirect.objects.all():
-        redirect_path = redirect.old_path.lstrip('/')
-        if redirect_path.lower().endswith('.html'):
+        redirect_path = redirect.old_path.lstrip("/")
+        if redirect_path.lower().endswith(".html"):
             redirect_file = redirect_path
         else:
-            redirect_file = str(Path(redirect_path) / 'index.html')
-        full_path, local_uri = get_static_filepath(output_dir, redirect_file, redirect_file)
+            redirect_file = str(Path(redirect_path) / "index.html")
+        full_path, local_uri = get_static_filepath(
+            output_dir, redirect_file, redirect_file
+        )
         content = render_static_redirect(redirect.new_path)
-        log.info(f'Rendering redirect page: {local_uri} -> {full_path} (redirects to: {redirect_file})')
+        log.info(
+            f"Rendering redirect page: {local_uri} -> {full_path} (redirects to: {redirect_file})"
+        )
         write_file(full_path, content)
     return True
 
 
 class StaticSiteRenderer:
-
     def __init__(
-            self,
-            urls_to_render: list[URLPattern] | None = None,
-            hostname: str | None = None,
-            enable_debug: bool = True,
-            concurrency: int = 1
-        ) -> None:
+        self,
+        urls_to_render: list[URLPattern] | None = None,
+        hostname: str | None = None,
+        enable_debug: bool = True,
+        concurrency: int = 1,
+    ) -> None:
         self._site_debug = settings.DEBUG
         self._site_allowed_hosts = settings.ALLOWED_HOSTS
         self._application = None
@@ -160,15 +168,13 @@ class StaticSiteRenderer:
         self.enable_debug = enable_debug
         self.concurrency = concurrency
 
-    def __enter__(
-        self
-    ) -> StaticSiteRenderer:
+    def __enter__(self) -> "StaticSiteRenderer":
         if self.hostname:
             settings.ALLOWED_HOSTS = [self.hostname]
         else:
             # Static sites generally want to ignore hostnames when being generated
-            settings.ALLOWED_HOSTS = ['*']
-        #if self.enable_debug:
+            settings.ALLOWED_HOSTS = ["*"]
+        # if self.enable_debug:
         settings.DEBUG = True
         return self
 
@@ -183,7 +189,7 @@ class StaticSiteRenderer:
         settings.DEBUG = self._site_debug
 
     def get_urls_to_render(
-        self
+        self,
     ) -> list[tuple[URLPattern, list[str | None] | tuple[str | None], str]]:
         to_render = []
         for url in self.urls_to_render:
@@ -196,19 +202,17 @@ class StaticSiteRenderer:
                 to_render.append((url, param_set, uri))
         return to_render
 
-    def urls(
-        self
-    ) -> Generator[str]:
-        """ Returns a list containing the generated URIs for all static site URL patterns. This does not render any
-        HTML content, just returns the URLs for the static site URL patterns. """
+    def urls(self) -> Generator[str]:
+        """Returns a list containing the generated URIs for all static site URL patterns. This does not render any
+        HTML content, just returns the URLs for the static site URL patterns."""
         for url, param_set, uri in self.get_urls_to_render():
             yield uri
 
     def render(
         self,
     ) -> Generator[tuple[URLPattern, str, str, int, dict, bytes]]:
-        """ Iterates all static site URL patterns, then calls each URL generator function for each pattern.
-        Yields the generated URI, filename, status, headers, and body. """
+        """Iterates all static site URL patterns, then calls each URL generator function for each pattern.
+        Yields the generated URI, filename, status, headers, and body."""
 
         def _render(item):
             rtn = []
@@ -224,19 +228,20 @@ class StaticSiteRenderer:
                     # render = (pattern, generated_uri, generated_filename, status, headers, body)
                     yield render
 
-    def render_to_directory(
-        self,
-        output_dir: Path | str
-    ) -> None:
-        log.info(f'Rendering static site to directory: {output_dir}')
+    def render_to_directory(self, output_dir: Path | str) -> None:
+        log.info(f"Rendering static site to directory: {output_dir}")
         if isinstance(output_dir, str):
             output_dir = Path(output_dir)
         if not isinstance(output_dir, Path):
-            raise StaticSiteError(f'Invalid output directory: {output_dir}')
+            raise StaticSiteError(f"Invalid output directory: {output_dir}")
         for render in self.render():
             pattern, generated_uri, generated_filename, status, headers, body = render
-            mime = get_header(headers, 'Content-Type')
-            full_path, local_uri = get_static_filepath(output_dir, generated_filename, generated_uri)
-            log.info(f'Rendering static page: {local_uri} -> {full_path} ("{mime}", {len(body)} bytes, from {pattern})')
+            mime = get_header(headers, "Content-Type")
+            full_path, local_uri = get_static_filepath(
+                output_dir, generated_filename, generated_uri
+            )
+            log.info(
+                f'Rendering static page: {local_uri} -> {full_path} ("{mime}", {len(body)} bytes, from {pattern})'
+            )
             write_file(Path(full_path), body)
-        log.info(f'Rendering static site to directory complete')
+        log.info("Rendering static site to directory complete")

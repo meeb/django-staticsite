@@ -5,22 +5,20 @@ from pathlib import Path
 from django.conf import settings
 
 
-log = getLogger('main')
+log = getLogger("main")
 
 
-def filter_static_dirs(
-        dirs: list[str]
-    ) -> list[str]:
-    skip_admin_dirs = bool(getattr(settings, 'STATICSITE_SKIP_ADMIN_DIRS', True))
+def filter_static_dirs(dirs: list[str]) -> list[str]:
+    skip_admin_dirs = bool(getattr(settings, "STATICSITE_SKIP_ADMIN_DIRS", True))
     _ignore_dirs = []
     if skip_admin_dirs:
         _ignore_dirs = [
-            'admin',
-            'grappelli',
-            'unfold',
+            "admin",
+            "grappelli",
+            "unfold",
         ]
     try:
-        skip_dirs = list(getattr(settings, 'STATICSITE_SKIP_STATICFILES_DIRS', []))
+        skip_dirs = list(getattr(settings, "STATICSITE_SKIP_STATICFILES_DIRS", []))
     except (ValueError, TypeError):
         skip_dirs = []
     for d in skip_dirs:
@@ -30,9 +28,8 @@ def filter_static_dirs(
 
 
 def copy_static(
-        dir_from: Path | str,
-        dir_to: Path | str
-    ) -> Generator[tuple[Path, Path]]:
+    dir_from: Path | str, dir_to: Path | str
+) -> Generator[tuple[Path, Path]]:
     if isinstance(dir_from, str):
         dir_from = Path(dir_from)
     if isinstance(dir_to, str):
@@ -50,32 +47,32 @@ def copy_static(
 
 
 def copy_static_and_media_files(
-        output_dir: Path | str,
-    ) -> bool:
+    output_dir: Path | str,
+) -> bool:
     if isinstance(output_dir, str):
         output_dir = Path(output_dir)
-    static_url = str(getattr(settings, 'STATIC_URL', ''))
-    static_root = str(getattr(settings, 'STATIC_ROOT', ''))
+    static_url = str(getattr(settings, "STATIC_URL", ""))
+    static_root = str(getattr(settings, "STATIC_ROOT", ""))
     if static_url and static_root:
         static_root = Path(static_root)
-        static_url = static_url[1:] if static_url.startswith('/') else static_url
+        static_url = static_url[1:] if static_url.startswith("/") else static_url
         static_output_dir = output_dir / static_url
         for file_from, file_to in copy_static(static_root, static_output_dir):
-            log.info(f'Copying static file: {file_from} -> {file_to}')
+            log.info(f"Copying static file: {file_from} -> {file_to}")
     else:
-        log.error('STATIC_URL and STATIC_ROOT must be set in settings.py to copy static files')
-    media_url = str(getattr(settings, 'MEDIA_URL', ''))
-    media_root = str(getattr(settings, 'MEDIA_ROOT', ''))
+        log.error(
+            "STATIC_URL and STATIC_ROOT must be set in settings.py to copy static files"
+        )
+    media_url = str(getattr(settings, "MEDIA_URL", ""))
+    media_root = str(getattr(settings, "MEDIA_ROOT", ""))
     if media_url and media_root:
         media_root = Path(media_root)
-        media_url = media_url[1:] if media_url.startswith('/') else media_url
+        media_url = media_url[1:] if media_url.startswith("/") else media_url
         media_output_dir = output_dir / media_url
         for file_from, file_to in copy_static(media_root, media_output_dir):
-            log.info(f'Copying media file: {file_from} -> {file_to}')
+            log.info(f"Copying media file: {file_from} -> {file_to}")
     else:
-        log.error('MEDIA_URL and MEDIA_ROOT must be set in settings.py to copy media files')
+        log.error(
+            "MEDIA_URL and MEDIA_ROOT must be set in settings.py to copy media files"
+        )
     return True
-
-
-def get_publishing_targets() -> dict:
-    return getattr(settings, 'STATICSITE_PUBLISHING_TARGETS', {})

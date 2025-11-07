@@ -7,15 +7,14 @@ from staticsite.static import copy_static_and_media_files
 
 
 class DjangoDistillStaticFilesTestSuite(TestCase):
-
     def test_copying_static_and_media_files(self):
         # Test default behavior
         with TemporaryDirectory(delete=False) as tempdir:
             tempdir = Path(tempdir)
             copy_static_and_media_files(tempdir)
-            test_media_file_path = tempdir / 'media' / 'media-test.txt'
+            test_media_file_path = tempdir / "media" / "media-test.txt"
             self.assertTrue(test_media_file_path.is_file())
-            test_static_file_path = tempdir / 'static' / 'static-test.txt'
+            test_static_file_path = tempdir / "static" / "static-test.txt"
             self.assertTrue(test_static_file_path.is_file())
 
     def test_skipping_admin_dirs(self):
@@ -23,18 +22,20 @@ class DjangoDistillStaticFilesTestSuite(TestCase):
         with TemporaryDirectory() as tempdir:
             tempdir = Path(tempdir)
             copy_static_and_media_files(tempdir)
-            test_media_file_path = tempdir / 'media' / 'media-test.txt'
+            test_media_file_path = tempdir / "media" / "media-test.txt"
             self.assertTrue(test_media_file_path.is_file())
-            test_static_file_path = tempdir / 'static' / 'static-test.txt'
+            test_static_file_path = tempdir / "static" / "static-test.txt"
             self.assertTrue(test_static_file_path.is_file())
-            test_admin_file_path = tempdir / 'static' / 'admin' / 'admin-test.txt'
+            test_admin_file_path = tempdir / "static" / "admin" / "admin-test.txt"
             self.assertTrue(test_admin_file_path.is_file())
-            test_appdir_file_path = tempdir / 'static' / 'appdir' / 'appdir-test.txt'
+            test_appdir_file_path = tempdir / "static" / "appdir" / "appdir-test.txt"
             self.assertTrue(test_appdir_file_path.is_file())
 
     def test_skipping_staticfiles_dirs(self):
-        settings.STATICSITE_SKIP_STATICFILES_DIRS = ['appdir']
+        settings.STATICSITE_SKIP_STATICFILES_DIRS = ["appdir"]
         with TemporaryDirectory() as tempdir:
             copy_static_and_media_files(tempdir)
-            test_appdir_file_path = str(Path(tempdir) / 'static' / 'appdir' / 'appdir-test.txt')
+            test_appdir_file_path = str(
+                Path(tempdir) / "static" / "appdir" / "appdir-test.txt"
+            )
             self.assertFalse(os.path.exists(test_appdir_file_path))

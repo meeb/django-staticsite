@@ -1,5 +1,6 @@
 import os
 import warnings
+import tempfile
 from sys import stderr
 from binascii import hexlify
 from types import ModuleType, FunctionType
@@ -26,7 +27,7 @@ def check_publisher_dependencies(
         raise
 
 
-def get_backend(engine_name: str) -> ModuleType:
+def get_publisher(engine_name: str) -> ModuleType:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         try:
@@ -36,6 +37,15 @@ def get_backend(engine_name: str) -> ModuleType:
                 f'Static site backend "{engine_name}" not found or failed to import: {e}'
             )
             raise
+
+
+def get_publisher_from_options(options: dict) -> ModuleType:
+    engine_name = options.get("ENGINE")
+    if not engine_name:
+        raise StaticSitePublishError(
+            "Static site publishing target does not have an ENGINE defined"
+        )
+    return get_publisher(engine_name)
 
 
 """

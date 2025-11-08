@@ -6,7 +6,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.core.management import call_command
 from staticsite.renderer import StaticSiteRenderer, render_redirects
 from staticsite.static import copy_static_and_media_files
-from staticsite.publisher import get_publishing_targets, get_publishing_target
+from staticsite.publisher import get_publishing_targets, get_publishing_target, get_publisher_from_options
+from staticsite.utils import create_test_file
 from staticsite.errors import StaticSiteError
 
 
@@ -52,9 +53,12 @@ class Command(BaseCommand):
             "--parallel-render", dest="parallel_render", type=int, default=1
         )
 
-    def write(self, msg):
+    def write(self, msg, error=False):
         if not self.quiet:
-            self.stdout.write(msg)
+            if error:
+                self.stderr.write(msg)
+            else:
+                self.stdout.write(msg)
 
     def handle(self, *args, **options):
         subcommand_map = {
@@ -198,11 +202,43 @@ class Command(BaseCommand):
             target_options = get_publishing_target(target_name)
         except StaticSiteError as e:
             raise CommandError(str(e)) from e
+        try:
+            publisher = get_publisher_from_options(target_options)
+        except Exception as e:
+            raise CommandError(f"Failed to load backend '{target_name}': {e}") from e
         self.write("")
-        self.write("Test static site publishing target:")
+        self.write(f"Testing static site publishing target: {target_name}")
         self.write("")
-        self.write(f"- {target_options}")
+        self.write(f"    Publisher:    {target_options.get('ENGINE')}")
+        self.write(f"    Public URL:   {target_options.get('PUBLIC_URL')}")
         self.write("")
+        self.write("The test will create a random test file, attempt to upload it to the")
+        self.write("target and verify it is accessible on the public URL before deleting it.")
+        self.write("")
+        if ask_question():
+            self.write("Testing publishing target...")
+            test_file = create_test_file()
+            self.write(f"Test file created: {test_file}")
+            remote_url = publisher.remote_url(test_file)
+            self.write(f"Testing URL: {remote_url}")
+            self.write("Uploading test file...")
+            publisher.upload_test_file(test_file)
+            self.write("Verifying remote test file...")
+            local_hash = publisher.get_local_file_hash(test_file)
+            remote_hash = publisher.get_url_hash(remote_url)
+            self.write(f"    Local file hash:  {local_hash}")
+            self.write(f"    Remote file hash: {remote_hash}")
+            if local_hash == remote_hash:
+                self.write("File uploaded correctly, file hash is correct.")
+            else:
+                self.write("Test failed, remote file hash differs from local hash", error=True)
+            self.write("Deleting test files...")
+            remote_path = publisher.remote_path(test_file)
+            publisher.delete_remote_file(remote_path)
+            test_file.unlink()
+            self.write("Test complete.")
+        else:
+            self.write("Testing target cancelled.")
 
     def command_list_static_urls(self, *args, **options):
         self.write("")

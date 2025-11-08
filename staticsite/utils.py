@@ -1,10 +1,14 @@
+import os
+import tempfile
+from binascii import hexlify
+from pathlib import Path
 from collections.abc import Generator
 from django.conf import settings, global_settings
 from django.urls import URLPattern, URLResolver, get_resolver
 
 
 def set_func_attr(name, value):
-    """Decorator for setting an arbitrary function attribute."""
+    """Decorator for setting an arbitrary function attribute. Only used for tests to mark certain views."""
 
     def decorator(func):
         setattr(func, name, value)
@@ -51,6 +55,7 @@ def get_header(headers: list[tuple[str, str]], name: str) -> str | None:
 
 
 def get_langs() -> list[str]:
+    """Returns a list of language codes for all languages configured in the project."""
     langs = []
     LANGUAGE_CODE = str(getattr(settings, "LANGUAGE_CODE", "en"))
     GLOBAL_LANGUAGES = list(getattr(global_settings, "LANGUAGES", []))
@@ -70,3 +75,11 @@ def get_langs() -> list[str]:
     for lang in STATICSITE_LANGUAGES:
         langs.append(lang)
     return langs
+
+
+def create_test_file() -> Path:
+    """Creates a temporary file with random contents used for testing publishers."""
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    temp_file.write(hexlify(os.urandom(16)))
+    temp_file.close()
+    return Path(temp_file.name)

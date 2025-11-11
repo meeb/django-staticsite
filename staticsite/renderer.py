@@ -41,9 +41,9 @@ def render_uri(
 
 def render_pattern(
     pattern: URLPattern,
-    param_set: list[str | None] | tuple[str | None],
+    param_set: list[str | None] | tuple[str | None] | tuple,
     language_code: str | None,
-) -> tuple[URLPattern, str, str, int, list, bytes]:
+) -> tuple[str, str, int, list, bytes]:
     if language_code:
         activate_lang(language_code)
     generated_uri = generate_uri(pattern.staticsite_namespace, pattern.name, param_set)

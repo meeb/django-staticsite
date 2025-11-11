@@ -57,24 +57,24 @@ def get_header(headers: list[tuple[str, str]], name: str) -> str | None:
 def get_langs() -> list[str]:
     """Returns a list of language codes for all languages configured in the project."""
     langs = []
-    LANGUAGE_CODE = str(getattr(settings, "LANGUAGE_CODE", "en"))
-    GLOBAL_LANGUAGES = list(getattr(global_settings, "LANGUAGES", []))
+    language_code = str(getattr(settings, "LANGUAGE_CODE", "en"))
+    global_languages = list(getattr(global_settings, "LANGUAGES", []))
     try:
-        LANGUAGES = list(getattr(settings, "LANGUAGES", []))
+        languages = list(getattr(settings, "LANGUAGES", []))
     except (ValueError, TypeError, AttributeError):
-        LANGUAGES = []
+        languages = []
     try:
-        STATICSITE_LANGUAGES = list(getattr(settings, "STATICSITE_LANGUAGES", []))
+        staticsite_languages = list(getattr(settings, "STATICSITE_LANGUAGES", []))
     except (ValueError, TypeError, AttributeError):
-        STATICSITE_LANGUAGES = []
-    if LANGUAGES != GLOBAL_LANGUAGES:
-        for lang_code, lang_name in LANGUAGES:
+        staticsite_languages = []
+    if languages != global_languages:
+        for lang_code, lang_name in languages:
             langs.append(lang_code)
-    if LANGUAGE_CODE not in STATICSITE_LANGUAGES and LANGUAGE_CODE not in langs:
-        langs.append(LANGUAGE_CODE)
-    for lang in STATICSITE_LANGUAGES:
+    if language_code not in staticsite_languages and language_code not in langs:
+        langs.append(language_code)
+    for lang in staticsite_languages:
         langs.append(lang)
-    return langs
+    return list(sorted(langs))
 
 
 def create_test_file() -> Path:

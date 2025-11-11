@@ -1,3 +1,4 @@
+import tempfile
 from shutil import rmtree
 from logging import getLogger
 from pathlib import Path
@@ -23,6 +24,18 @@ def run_collectstatic():
         call_command("collectstatic", "--noinput")
     except Exception as e:
         raise CommandError(f'Error running "collectstatic": {e}') from e
+
+
+def load_target(target_name):
+    try:
+        target_options = get_publishing_target(target_name)
+    except StaticSiteError as e:
+        raise CommandError(str(e)) from e
+    try:
+        publisher = get_publisher_from_options(target_options)
+    except Exception as e:
+        raise CommandError(f"Failed to load backend '{target_name}': {e}") from e
+    return target_options, publisher
 
 
 class Command(BaseCommand):
@@ -139,12 +152,9 @@ class Command(BaseCommand):
                     "settings.STATICSITE_DIR must be set."
                 )
         output_directory = Path(output_directory).resolve()
-        collectstatic = options.get("collectstatic")
         force = options.get("force")
         exclude_staticfiles = options.get("exclude_staticfiles")
-        generate_redirects = options.get("generate_redirects")
-        parallel_render = options.get("parallel_render")
-        if collectstatic:
+        if options.get("collectstatic"):
             self.write('Running "collectstatic" ...')
             run_collectstatic()
         if not exclude_staticfiles and not Path(settings.STATIC_ROOT).is_dir():
@@ -156,7 +166,8 @@ class Command(BaseCommand):
             "You have requested to create a static version of his site into the output path directory:"
         )
         self.write("")
-        self.write(f"    Source static path:      {settings.STATIC_ROOT}")
+        if not exclude_staticfiles:
+            self.write(f"    Source static path:      {settings.STATIC_ROOT}")
         self.write(f"    Static site output path: {output_directory}")
         self.write("")
         if output_directory.is_dir():
@@ -176,36 +187,70 @@ class Command(BaseCommand):
                 output_directory.mkdir(parents=True)
             else:
                 raise CommandError("Static site generation cancelled.")
-
         self.write("")
         self.write("Generating static site into directory: {}".format(output_directory))
         try:
-            with StaticSiteRenderer(concurrency=parallel_render) as staticsite_renderer:
+            with StaticSiteRenderer(concurrency=options.get("parallel_render")) as staticsite_renderer:
                 staticsite_renderer.render_to_directory(output_directory)
             if not exclude_staticfiles:
                 copy_static_and_media_files(output_directory)
         except StaticSiteError as e:
             raise CommandError(str(e)) from e
         self.write("")
-        if generate_redirects:
-            self.write("Generating redirects")
+        if options.get("generate_redirects"):
+            self.write("Generating redirects ...")
             render_redirects(output_directory)
             self.write("")
         self.write("Static site generation complete.")
 
     def command_publish(self, *args, **options):
-        pass
+        target_name = options.get("target")
+        target_options, publisher_class = load_target(target_name)
+        collectstatic = options.get("collectstatic")
+        exclude_staticfiles = options.get("exclude_staticfiles")
+        generate_redirects = options.get("generate_redirects")
+        parallel_render = options.get("parallel_render")
+        if collectstatic:
+            self.write('Running "collectstatic" ...')
+            run_collectstatic()
+        if not exclude_staticfiles and not Path(settings.STATIC_ROOT).is_dir():
+            raise CommandError(
+                f'Static source directory "{settings.STATIC_ROOT}" does not exist, run collectstatic'
+            )
+        self.write("")
+        self.write(f"Publishing static site to target: {target_name}")
+        self.write("")
+        self.write(f"    Publisher:    {target_options.get('ENGINE')}")
+        self.write(f"    Public URL:   {target_options.get('PUBLIC_URL')}")
+        self.write("")
+        self.write("The static site will first be generated locally into a temporary directory")
+        self.write("before being uploaded to the publishing target. Once uploaded and verified")
+        self.write("the temporary directory will be deleted.")
+        self.write("")
+        if options.get("force") or ask_question():
+            self.write("Publishing static site ...")
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                tmpdirpath = Path(tmpdirname)
+                self.write(f"Generating static site into temporary directory: {tmpdirpath}")
+                with StaticSiteRenderer(concurrency=parallel_render) as staticsite_renderer:
+                    staticsite_renderer.render_to_directory(tmpdirpath)
+                if not exclude_staticfiles:
+                    copy_static_and_media_files(tmpdirpath)
+                if generate_redirects:
+                    self.write("Generating redirects ...")
+                    render_redirects(tmpdirpath)
+                self.write("Authenticating to publishing target ...")
+                publisher = publisher_class(tmpdirpath, target_options)
+                publisher.authenticate()
+                self.write("Publishing static site to target ...")
+                publisher.publish()
+            self.write("Publishing static site complete.")
+        else:
+            self.write("Publishing static site cancelled.")
 
     def command_test_target(self, *args, **options):
         target_name = options.get("target")
-        try:
-            target_options = get_publishing_target(target_name)
-        except StaticSiteError as e:
-            raise CommandError(str(e)) from e
-        try:
-            publisher = get_publisher_from_options(target_options)
-        except Exception as e:
-            raise CommandError(f"Failed to load backend '{target_name}': {e}") from e
+        target_options, publisher_class = load_target(target_name)
         self.write("")
         self.write(f"Testing static site publishing target: {target_name}")
         self.write("")
@@ -218,6 +263,7 @@ class Command(BaseCommand):
         if ask_question():
             self.write("Testing publishing target...")
             test_file = create_test_file()
+            publisher = publisher_class(test_file.parent, target_options)
             self.write(f"Test file created: {test_file}")
             remote_url = publisher.remote_url(test_file)
             self.write(f"Testing URL: {remote_url}")

@@ -1,6 +1,7 @@
 import os
 import warnings
 from sys import stderr
+from logging import getLogger
 from binascii import hexlify
 from types import ModuleType, FunctionType
 from importlib import import_module
@@ -9,9 +10,13 @@ from hashlib import md5
 from mimetypes import guess_file_type
 from urllib.parse import urlsplit, urlunsplit
 from http.client import HTTPConnection, HTTPSConnection
+from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from .errors import StaticSitePublishError
 from .static import filter_static_dirs
+
+
+log = getLogger("main")
 
 
 def check_publisher_dependencies(
@@ -85,6 +90,7 @@ class PublisherBackendBase(object):
         self.remote_files = set()
         self.remote_url_parts = urlsplit(options.get("PUBLIC_URL", ""))
         self.d = {}
+        self._authenticated = False
         self.validate_options()
 
     def validate_options(self) -> None:
@@ -219,6 +225,64 @@ class PublisherBackendBase(object):
         remote_path = Path("/") / local_name.relative_to(self.source_dir)
         return str(remote_path).replace(os.sep, "/")
 
+    def publish(self, verify: bool=True, ignore_remote_content: bool = False, concurrency: int = 1) -> bool:
+        """Performs a full synchronisation of a local directory olf files with a remote publishing target."""
+        if not self._authenticated:
+            raise StaticSitePublishError(
+                "Not authenticated, please call authenticate() before publishing"
+            )
+        self.index_local_files()
+        local_files = self.get_local_files()
+        remote_files = set() if ignore_remote_content else self.list_remote_files()
+        local_files_remote_names = set()
+        to_upload = set()
+        to_delete = set()
+        # Check local files to upload
+        for local_file in local_files:
+            remote_file = self.remote_path(local_file)
+            local_files_remote_names.add(remote_file)
+            if remote_file not in remote_files:
+                # Local file is not present remotely, queue it to be uploaded
+                to_upload.add(local_file)
+            else:
+                # File is present remotely, check its hash
+                if not self.compare_file(local_file, remote_file):
+                    log.info(f"File stale (hash different): {remote_file}")
+                    # Remote file hash is different, queue it to be re-uploaded
+                    to_upload.add(local_file)
+                else:
+                    log.debug(f"File fresh (hash matches): {remote_file}")
+        # Check for remote files to delete
+        for remote_file in remote_files:
+            if remote_file not in local_files_remote_names:
+                # Remote file is not present locally, queue it to be deleted
+                to_delete.add(remote_file)
+        with ThreadPoolExecutor(max_workers=concurrency) as executor:
+
+            def _publish_local_file(local_file: Path) -> bool:
+                remote_file = self.remote_path(local_file)
+                log.info(f"Publishing: {local_file} to {remote_file}")
+                self.upload_file(local_file, remote_file, verify=verify)
+                if verify:
+                    url = self.generate_remote_url(local_file)
+                    log.info(f"Verifying: {url}")
+                    if not self.check_file(local_file, url):
+                        raise StaticSitePublishError(f"Remote file failed hash check: {url}")
+                return True
+
+            def _delete_remote_file(remote_file: str) -> bool:
+                log.info(f"Deleting: {remote_file}")
+                self.delete_remote_file(remote_file)
+                return True
+
+            # upload any new or changed files
+            executor.map(lambda f: _publish_local_file(f), to_upload)
+            # Call any final checks that may be needed by the backend
+            self.final_checks()
+            # delete any orphan files
+            executor.map(lambda f: _delete_remote_file(f), to_delete)
+        return True
+
     def account_username(self) -> str:
         raise NotImplementedError("account_username must be implemented")
 
@@ -237,7 +301,7 @@ class PublisherBackendBase(object):
     def compare_file(self, local_name: Path | str, remote_name: str) -> bool:
         raise NotImplementedError("compare_file must be implemented")
 
-    def upload_file(self, local_name: Path | str, remote_name: str) -> bool:
+    def upload_file(self, local_name: Path | str, remote_name: str, verify: bool = True) -> bool:
         raise NotImplementedError("upload_file must be implemented")
 
     def create_remote_dir(self, remote_dir_name: str) -> bool:

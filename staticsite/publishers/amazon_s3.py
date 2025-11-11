@@ -37,6 +37,7 @@ class AmazonS3Backend(PublisherBackendBase):
         else:
             self.d["connection"] = boto3.client("s3")
         self.d["bucket"] = bucket
+        self._authenticated = True
         return True
 
     def get_remote_files(self) -> set[str]:

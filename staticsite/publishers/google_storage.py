@@ -38,6 +38,7 @@ class GoogleCloudStorageBackend(PublisherBackendBase):
         bucket = self.account_container()
         self.d["connection"] = storage.Client()
         self.d["bucket"] = self.d["connection"].get_bucket(bucket)
+        self._authenticated = True
         return True
 
     def get_remote_files(self) -> set[str]:

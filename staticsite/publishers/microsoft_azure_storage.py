@@ -66,6 +66,7 @@ class AzureBlobStorateBackend(PublisherBackendBase):
         self.d["connection"] = BlobServiceClient.from_connection_string(
             conn_str=self.connection_string()
         )
+        self._authenticated = True
         return True
 
     def get_remote_files(self) -> set[str]:

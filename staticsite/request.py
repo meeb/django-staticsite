@@ -84,7 +84,9 @@ def internal_wsgi_request(
     return response_status_code, response_headers, response_body_bytes
 
 
-def get_uri_values(func: FunctionType, view_name: str) -> list[str | int | None] | tuple[None]:
+def get_uri_values(
+    func: FunctionType, view_name: str
+) -> list[str | int | None] | tuple[None]:
     """Call the staticsite_urls_generator function for a view and normalises the result to be a list."""
     fullargspec = getfullargspec(func)
     try:

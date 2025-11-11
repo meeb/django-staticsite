@@ -7,7 +7,11 @@ from django.core.management.base import BaseCommand, CommandError
 from django.core.management import call_command
 from staticsite.renderer import StaticSiteRenderer, render_redirects
 from staticsite.static import copy_static_and_media_files
-from staticsite.publisher import get_publishing_targets, get_publishing_target, get_publisher_from_options
+from staticsite.publisher import (
+    get_publishing_targets,
+    get_publishing_target,
+    get_publisher_from_options,
+)
 from staticsite.utils import create_test_file
 from staticsite.errors import StaticSiteError
 
@@ -190,7 +194,9 @@ class Command(BaseCommand):
         self.write("")
         self.write("Generating static site into directory: {}".format(output_directory))
         try:
-            with StaticSiteRenderer(concurrency=options.get("parallel_render")) as staticsite_renderer:
+            with StaticSiteRenderer(
+                concurrency=options.get("parallel_render")
+            ) as staticsite_renderer:
                 staticsite_renderer.render_to_directory(output_directory)
             if not exclude_staticfiles:
                 copy_static_and_media_files(output_directory)
@@ -223,16 +229,24 @@ class Command(BaseCommand):
         self.write(f"    Publisher:    {target_options.get('ENGINE')}")
         self.write(f"    Public URL:   {target_options.get('PUBLIC_URL')}")
         self.write("")
-        self.write("The static site will first be generated locally into a temporary directory")
-        self.write("before being uploaded to the publishing target. Once uploaded and verified")
+        self.write(
+            "The static site will first be generated locally into a temporary directory"
+        )
+        self.write(
+            "before being uploaded to the publishing target. Once uploaded and verified"
+        )
         self.write("the temporary directory will be deleted.")
         self.write("")
         if options.get("force") or ask_question():
             self.write("Publishing static site ...")
             with tempfile.TemporaryDirectory() as tmpdirname:
                 tmpdirpath = Path(tmpdirname)
-                self.write(f"Generating static site into temporary directory: {tmpdirpath}")
-                with StaticSiteRenderer(concurrency=parallel_render) as staticsite_renderer:
+                self.write(
+                    f"Generating static site into temporary directory: {tmpdirpath}"
+                )
+                with StaticSiteRenderer(
+                    concurrency=parallel_render
+                ) as staticsite_renderer:
                     staticsite_renderer.render_to_directory(tmpdirpath)
                 if not exclude_staticfiles:
                     copy_static_and_media_files(tmpdirpath)
@@ -257,8 +271,12 @@ class Command(BaseCommand):
         self.write(f"    Publisher:    {target_options.get('ENGINE')}")
         self.write(f"    Public URL:   {target_options.get('PUBLIC_URL')}")
         self.write("")
-        self.write("The test will create a random test file, attempt to upload it to the")
-        self.write("target and verify it is accessible on the public URL before deleting it.")
+        self.write(
+            "The test will create a random test file, attempt to upload it to the"
+        )
+        self.write(
+            "target and verify it is accessible on the public URL before deleting it."
+        )
         self.write("")
         if ask_question():
             self.write("Testing publishing target...")
@@ -277,7 +295,9 @@ class Command(BaseCommand):
             if local_hash == remote_hash:
                 self.write("File uploaded correctly, file hash is correct.")
             else:
-                self.write("Test failed, remote file hash differs from local hash", error=True)
+                self.write(
+                    "Test failed, remote file hash differs from local hash", error=True
+                )
             self.write("Deleting test files...")
             remote_path = publisher.remote_path(test_file)
             publisher.delete_remote_file(remote_path)

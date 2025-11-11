@@ -225,7 +225,12 @@ class PublisherBackendBase(object):
         remote_path = Path("/") / local_name.relative_to(self.source_dir)
         return str(remote_path).replace(os.sep, "/")
 
-    def publish(self, verify: bool=True, ignore_remote_content: bool = False, concurrency: int = 1) -> bool:
+    def publish(
+        self,
+        verify: bool = True,
+        ignore_remote_content: bool = False,
+        concurrency: int = 1,
+    ) -> bool:
         """Performs a full synchronisation of a local directory olf files with a remote publishing target."""
         if not self._authenticated:
             raise StaticSitePublishError(
@@ -257,52 +262,57 @@ class PublisherBackendBase(object):
             if remote_file not in local_files_remote_names:
                 # Remote file is not present locally, queue it to be deleted
                 to_delete.add(remote_file)
+
+        def _publish_local_file(_local_file: Path) -> bool:
+            remote_file = self.remote_path(_local_file)
+            log.info(f"Publishing: {_local_file} to {remote_file}")
+            self.upload_file(_local_file, remote_file, verify=verify)
+            if verify:
+                url = self.generate_remote_url(_local_file)
+                log.info(f"Verifying: {url}")
+                if not self.check_file(_local_file, url):
+                    raise StaticSitePublishError(
+                        f"Remote file failed hash check: {url}"
+                    )
+            return True
+
+        def _delete_remote_file(_remote_file: str) -> bool:
+            log.info(f"Deleting: {_remote_file}")
+            self.delete_remote_file(_remote_file)
+            return True
+
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
-
-            def _publish_local_file(local_file: Path) -> bool:
-                remote_file = self.remote_path(local_file)
-                log.info(f"Publishing: {local_file} to {remote_file}")
-                self.upload_file(local_file, remote_file, verify=verify)
-                if verify:
-                    url = self.generate_remote_url(local_file)
-                    log.info(f"Verifying: {url}")
-                    if not self.check_file(local_file, url):
-                        raise StaticSitePublishError(f"Remote file failed hash check: {url}")
-                return True
-
-            def _delete_remote_file(remote_file: str) -> bool:
-                log.info(f"Deleting: {remote_file}")
-                self.delete_remote_file(remote_file)
-                return True
-
             # upload any new or changed files
             executor.map(lambda f: _publish_local_file(f), to_upload)
             # Call any final checks that may be needed by the backend
             self.final_checks()
             # delete any orphan files
             executor.map(lambda f: _delete_remote_file(f), to_delete)
+
         return True
 
     def account_username(self) -> str:
-        raise NotImplementedError("account_username must be implemented")
+        raise NotImplementedError("account_username() must be implemented")
 
     def account_container(self) -> str:
-        raise NotImplementedError("account_container must be implemented")
+        raise NotImplementedError("account_container() must be implemented")
 
     def authenticate(self) -> bool:
-        raise NotImplementedError("authenticate must be implemented")
+        raise NotImplementedError("authenticate() must be implemented")
 
     def list_remote_files(self) -> set[str]:
-        raise NotImplementedError("list_remote_files must be implemented")
+        raise NotImplementedError("list_remote_files() must be implemented")
 
     def delete_remote_file(self, remote_name: str) -> bool:
-        raise NotImplementedError("delete_remote_file must be implemented")
+        raise NotImplementedError("delete_remote_file() must be implemented")
 
     def compare_file(self, local_name: Path | str, remote_name: str) -> bool:
-        raise NotImplementedError("compare_file must be implemented")
+        raise NotImplementedError("compare_file() must be implemented")
 
-    def upload_file(self, local_name: Path | str, remote_name: str, verify: bool = True) -> bool:
-        raise NotImplementedError("upload_file must be implemented")
+    def upload_file(
+        self, local_name: Path | str, remote_name: str, verify: bool = True
+    ) -> bool:
+        raise NotImplementedError("upload_file() must be implemented")
 
     def create_remote_dir(self, remote_dir_name: str) -> bool:
-        raise NotImplementedError("create_remote_dir must be implemented")
+        raise NotImplementedError("create_remote_dir() must be implemented")

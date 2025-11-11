@@ -264,9 +264,9 @@ class PublisherBackendBase(object):
                 to_delete.add(remote_file)
 
         def _publish_local_file(_local_file: Path) -> bool:
-            remote_file = self.remote_path(_local_file)
-            log.info(f"Publishing: {_local_file} to {remote_file}")
-            self.upload_file(_local_file, remote_file, verify=verify)
+            _remote_file = self.remote_path(_local_file)
+            log.info(f"Publishing: {_local_file} to {_remote_file}")
+            self.upload_file(_local_file, _remote_file, verify=verify)
             if verify:
                 url = self.generate_remote_url(_local_file)
                 log.info(f"Verifying: {url}")

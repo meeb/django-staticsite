@@ -31,6 +31,7 @@ It does not add any excessive complexity, the code should be easily understood a
 * Consolidation of commands into a single `staticsite` command
 * Full support for the same publishing targets as Django Distill
 * Full compatability when integrated with other contrib modules, such as `humanize`, `sitemaps`, `flatpages` etc.
+* Using normal logging and the usual Django logging configuration
 
 
 # Installation for testing
@@ -76,6 +77,10 @@ STATICSITE_SKIP_STATICFILES_DIRS = ["a_directory", "another_directory"]
 
 STATICSITE_SKIP_ADMIN_DIRS = True
 ```
+
+# Still to do
+
+* Full testing for publishing targets (requires creating some Azure accounts etc.)
 
 
 # Steps required for further integration

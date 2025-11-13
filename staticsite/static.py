@@ -72,7 +72,7 @@ def copy_static_and_media_files(
         for file_from, file_to in copy_static(media_root, media_output_dir):
             log.info(f"Copying media file: {file_from} -> {file_to}")
     else:
-        log.error(
+        log.warning(
             "MEDIA_URL and MEDIA_ROOT must be set in settings.py to copy media files"
         )
     return True

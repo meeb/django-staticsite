@@ -9,7 +9,7 @@ log = getLogger("main")
 
 
 def filter_static_dirs(dirs: list[str]) -> list[str]:
-    skip_admin_dirs = bool(getattr(settings, "STATICSITE_SKIP_ADMIN_DIRS", True))
+    skip_admin_dirs = bool(getattr(settings, "STATICSITE_SKIP_ADMIN_DIRECTORIES", True))
     _ignore_dirs = []
     if skip_admin_dirs:
         _ignore_dirs = [
@@ -18,7 +18,7 @@ def filter_static_dirs(dirs: list[str]) -> list[str]:
             "unfold",
         ]
     try:
-        skip_dirs = list(getattr(settings, "STATICSITE_SKIP_STATICFILES_DIRS", []))
+        skip_dirs = list(getattr(settings, "STATICSITE_SKIP_STATICFILES_DIRECTORIES", []))
     except (ValueError, TypeError):
         skip_dirs = []
     for d in skip_dirs:

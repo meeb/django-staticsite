@@ -18,7 +18,7 @@ class StaticSiteStaticTestSuite(TestCase):
             self.assertTrue(test_static_file_path.is_file())
 
     def test_skipping_admin_dirs(self):
-        settings.STATICSITE_SKIP_ADMIN_DIRS = False
+        settings.STATICSITE_SKIP_ADMIN_DIRECTORIES = False
         with TemporaryDirectory() as tempdir:
             tempdir = Path(tempdir)
             copy_static_and_media_files(tempdir)
@@ -32,7 +32,7 @@ class StaticSiteStaticTestSuite(TestCase):
             self.assertTrue(test_appdir_file_path.is_file())
 
     def test_skipping_staticfiles_dirs(self):
-        settings.STATICSITE_SKIP_STATICFILES_DIRS = ["appdir"]
+        settings.STATICSITE_SKIP_STATICFILES_DIRECTORIES = ["appdir"]
         with TemporaryDirectory() as tempdir:
             copy_static_and_media_files(tempdir)
             test_appdir_file_path = str(

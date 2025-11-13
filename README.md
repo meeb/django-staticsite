@@ -42,6 +42,42 @@ It does not add any excessive complexity, the code should be easily understood a
 5. Create your static site with the `manage.py staticsite generate` command
 
 
+# Optional `settings` added
+
+You can optionally configure the following settings in your Django project's `settings.py` file when using
+`django-staticsite` - none of these are required:
+
+* `settings.STATICSITE_DIRECTORY` - default directory to generate static sites into
+* `settings.STATICSITE_PUBLISHING_TARGETS` - dictionary of publishing target options
+* `settings.STATICSITE_LANGUAGES` - list of languages to generate static sites for
+* `settings.STATICSITE_SKIP_STATICFILES_DIRECTORIES` - list of directories in `/static/` to skip when generating
+* `settings.STATICSITE_SKIP_ADMIN_DIRECTORIES` - boolean flag to enable skipping of admin directories
+
+Example:
+
+```python
+STATICSITE_DIRECTORY = BASE_DIR / "public"
+
+STATICSITE_PUBLISHING_TARGETS = {
+    "test-s3-container": {
+        "ENGINE": "staticsite.publishers.amazon_s3",
+        "PUBLIC_URL": "https://some-public-url/",
+        "ACCESS_KEY_ID": "some-access-key",
+        "SECRET_ACCESS_KEY": "some-secret-key",
+        "BUCKET": "some-bucket",
+        "ENDPOINT_URL": "https://some-endpoint-url/",
+        "DEFAULT_CONTENT_TYPE": "application/octet-stream",
+    }
+}
+
+STATICSITE_LANGUAGES = ["en", "fr", "de"]
+
+STATICSITE_SKIP_STATICFILES_DIRS = ["a_directory", "another_directory"]
+
+STATICSITE_SKIP_ADMIN_DIRS = True
+```
+
+
 # Steps required for further integration
 
 Django StaticSite, if integrated as a contrib module, would need some minor additional parameters added to `URLPattern`

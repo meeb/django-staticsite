@@ -149,11 +149,11 @@ class Command(BaseCommand):
     def command_generate(self, *args, **options):
         output_directory = options.get("output_directory")
         if not output_directory:
-            output_directory = getattr(settings, "STATICSITE_DIR", None)
+            output_directory = getattr(settings, "STATICSITE_DIRECTORY", None)
             if not output_directory:
                 raise CommandError(
                     "No static site directory specified, one of --output-directory or "
-                    "settings.STATICSITE_DIR must be set."
+                    "settings.STATICSITE_DIRECTORY must be set."
                 )
         output_directory = Path(output_directory).resolve()
         force = options.get("force")

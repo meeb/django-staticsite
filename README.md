@@ -35,7 +35,7 @@ It does not add any excessive complexity, the code should be easily understood a
 
 # Installation for testing
 
-1. Install via pip, uv, poetry, etc. `uv add django-staticsite git+https://github.com/meeb/django-staticsite.git`
+1. Install via pip, uv, poetry, etc. `uv add "django-staticsite git+https://github.com/meeb/django-staticsite.git"`
 2. Add to `django-staticsite` to `INSTALLED_APPS`
 3. Create your static site URL generator functions 
 4. Add `staticsite_*` arguments to your URLs in `urls.py`

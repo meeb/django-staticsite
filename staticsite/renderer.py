@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.urls import URLPattern
 from django.utils.translation import activate as activate_lang
-from django.contrib.redirects.models import Redirect
 from .errors import StaticSiteError, StaticSiteRenderError
 from .urls import get_staticsite_urls, get_staticsite_url_by_name
 from .request import (
@@ -130,6 +129,7 @@ def render_static_redirect(destination_url: str) -> bytes:
 
 
 def render_redirects(output_dir: Path | str) -> bool:
+    from django.contrib.redirects.models import Redirect
     if isinstance(output_dir, str):
         output_dir = Path(output_dir)
     for redirect in Redirect.objects.all():

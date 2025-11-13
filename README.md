@@ -42,7 +42,7 @@ A functional example of Django Static Site in use and being deployed to Cloudfla
 # Installation for testing
 
 1. Install via pip, uv, poetry, etc. `uv add "django-staticsite git+https://github.com/meeb/django-staticsite.git"`
-2. Add to `django-staticsite` to `INSTALLED_APPS`
+2. Add to `staticsite` to `INSTALLED_APPS`
 3. Create your static site URL generator functions 
 4. Add `staticsite_*` arguments to your URLs in `urls.py`
 5. Create your static site with the `manage.py staticsite generate` command

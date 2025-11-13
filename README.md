@@ -19,6 +19,11 @@ optional contrib module would be a logical and useful extension to the "batterie
 
 It does not add any excessive complexity, the code should be easily understood and be maintainable.
 
+A functional example of Django Static Site in use and being deployed to Cloudflare Pages can be found here:
+
+* URL: https://django-staticsite-example.meeb.org/
+* Repo: https://github.com/meeb/django-staticsite-example
+
 
 # Notable changes from Django Distill
 

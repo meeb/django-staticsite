@@ -29,7 +29,7 @@ class StaticSiteConfig(AppConfig):
             view: FunctionType,
             kwargs: dict | None = None,
             name: str = None,
-            staticsite_path: str = False,
+            staticsite_path: bool = False,
             staticsite_urls_generator: FunctionType = None,
             staticsite_filename: str = None,
             staticsite_status_codes: tuple[int] | None = None,
